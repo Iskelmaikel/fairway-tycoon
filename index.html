@@ -325,6 +325,36 @@ button { font-family: var(--font-body); }
 .pill { flex: none; border-radius: 10px; padding: 5px 10px; font-size: 11.5px; font-weight: 700; font-variant-numeric: tabular-nums; display: inline-flex; gap: 6px; align-items: center; }
 .pill i { width: 7px; height: 7px; border-radius: 50%; background: #7fe09a; }
 .pill i.warn { background: var(--gold); } .pill i.bad { background: var(--flag); }
+.goal-pill { cursor: pointer; font-family: inherit; }
+.diff-row { display: flex; align-items: center; gap: 10px; width: 100%; } .diff-row > span { font-weight: 800; font-size: 13px; } .diff-row .seg { flex: 1; }
+.diff-blurb { margin: -2px 0 0; font-size: 12px; color: var(--muted); text-align: left; width: 100%; }
+.scen-n { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: #eef4ef; font-size: 11px; margin-right: 6px; vertical-align: 1px; }
+.scen.locked { opacity: 0.5; cursor: not-allowed; padding-top: 8px; padding-bottom: 8px; }
+.title .scen:not([aria-pressed="true"]):not(.locked) { padding-top: 9px; padding-bottom: 9px; }
+.scen .lk { font-size: 11.5px; }
+.scen-detail { width: 100%; text-align: left; background: #f6f3e8; border-radius: 12px; padding: 9px 12px; display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; }
+.title .scen-detail { background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.14); color: #fff; box-sizing: border-box; }
+.title .sd-h span { color: var(--gold); }
+.sd-h { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; } .sd-h span { color: #8a6a10; font-weight: 700; }
+.sd-row { display: flex; gap: 8px; align-items: baseline; } .sd-row i { font-style: normal; }
+.tier { display: grid; grid-template-columns: 26px 1fr; gap: 8px; padding: 7px 0; border-top: 1px solid var(--line); opacity: 0.6; }
+.tier.now { opacity: 1; } .tier.got { opacity: 0.9; }
+.tier i { font-style: normal; font-size: 20px; line-height: 1.2; }
+.tier div { display: flex; flex-direction: column; gap: 2px; } .tier b { font-size: 13.5px; } .tier b small { font-weight: 600; color: var(--muted); font-size: 11px; }
+.tier span { font-size: 12.5px; color: var(--ink); } .tier span em { font-style: normal; color: var(--muted); font-weight: 700; margin-left: 4px; }
+.tier span.ok { color: #2a8a4a; }
+.medal-now { margin: 0; font-weight: 800; color: #8a6a10; }
+.board { border-top: 1px solid var(--line); padding-top: 8px; display: flex; flex-direction: column; gap: 5px; }
+.board .muted { margin: 0; font-size: 12px; } .board .pos { color: #2a8a4a; font-weight: 800; } .board .neg { color: #c8322a; font-weight: 800; }
+.warn-line { margin: 0; font-size: 12.5px; font-weight: 700; color: #c8322a; }
+#endModal { z-index: 10; }
+.end-card { width: min(420px, 100%) !important; zoom: var(--ui, 1); }
+.end-ic { font-size: 56px; line-height: 1; width: 96px; height: 96px; border-radius: 50%; display: grid; place-items: center; background: #f6efd9; box-shadow: inset 0 0 0 4px var(--gold); }
+.end-modal.lose .end-ic { background: #f3e3e0; box-shadow: inset 0 0 0 4px var(--flag); }
+.end-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; width: 100%; }
+.end-stats div { background: #f3f5f2; border-radius: 10px; padding: 7px 6px; display: flex; flex-direction: column; gap: 1px; }
+.end-stats span { font-size: 10.5px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; } .end-stats b { font-size: 15px; font-variant-numeric: tabular-nums; }
+.end-btns { display: flex; flex-direction: column; gap: 8px; width: 100%; } .end-btns .ghost { padding: 11px; font-size: 14px; }
 .ev-pill { border: 0; cursor: pointer; color: inherit; font-family: inherit; background: rgba(242,193,78,0.92) !important; color: #2a2008 !important; }
 .ev-pill .ev-i { font-size: 13px; line-height: 1; }
 [hidden] { display: none !important; }
@@ -493,7 +523,7 @@ body.at-title .top, body.at-title .bottom, body.at-title .sheet, body.at-title .
   color: #fff; zoom: var(--ui, 1);
 }
 .title-col {
-  width: min(460px, 100%); display: flex; flex-direction: column; justify-content: center; gap: 22px;
+  width: min(460px, 100%); display: flex; flex-direction: column; justify-content: center; justify-content: safe center; gap: 22px;
   padding: calc(28px + env(safe-area-inset-top, 0px)) 28px calc(28px + env(safe-area-inset-bottom, 0px)) max(44px, env(safe-area-inset-left, 0px));
   overflow-y: auto;
 }
@@ -694,6 +724,7 @@ label.auto input { accent-color: var(--turf); }
     </div>
   </header>
   <div class="pills">
+    <button class="pill glass goal-pill" id="pillGoal" type="button" hidden title="Your objective: open Park → Goals"></button>
     <button class="pill glass ev-pill" id="pillEvent" type="button" hidden title="What is happening: open the news"></button>
     <span class="pill glass" id="pillBays"></span>
     <span class="pill glass" id="pillBalls"></span>
@@ -733,6 +764,7 @@ label.auto input { accent-color: var(--turf); }
         <div class="stat"><span class="eyebrow">Happiness</span><span class="v" id="moodTxt">–</span></div>
         <div class="stat"><span class="eyebrow">Marshals’ work</span><span class="v" id="marshTxt">–</span></div>
       </div>
+      <div class="pk" id="pkObjective" data-sec="goals"></div>
       <div class="pk" id="pkStars" data-sec="goals"></div>
       <div class="pk" id="pkGoals" data-sec="goals"></div>
       <div class="pk" id="pkNews" data-sec="events"></div>
@@ -786,6 +818,9 @@ label.auto input { accent-color: var(--turf); }
       <h2>New game</h2>
       <label>Club name<input type="text" id="parkNameIn" maxlength="32" autocomplete="off" spellcheck="false"></label>
       <div class="scen-list" id="scenList"></div>
+      <div class="diff-row"><span>Difficulty</span><div class="seg" id="diffSeg"></div></div>
+      <p class="diff-blurb" id="diffBlurb"></p>
+      <div id="scenDetail"></div>
       <div class="pane-btns"><button class="tm" type="button" data-tm="back">Back</button><button class="tm primary" type="button" id="startBtn">Start</button></div>
     </div>
     <div class="title-pane" id="titleLoad" hidden>
@@ -877,6 +912,16 @@ label.auto input { accent-color: var(--turf); }
   </div>
 </div>
 
+<div class="modal end-modal" id="endModal" hidden>
+  <div class="card end-card" role="dialog" aria-labelledby="endTitle">
+    <span class="end-ic" id="endIcon" aria-hidden="true"></span>
+    <span class="eyebrow" id="endKicker"></span>
+    <h2 id="endTitle"></h2>
+    <p id="endText"></p>
+    <div class="end-stats" id="endStats"></div>
+    <div class="end-btns" id="endBtns"></div>
+  </div>
+</div>
 <div class="modal" id="evModal" hidden>
   <div class="card ev-card" role="dialog" aria-labelledby="evTitle">
     <span class="ev-ic" id="evIcon" aria-hidden="true"></span>
@@ -899,7 +944,7 @@ label.auto input { accent-color: var(--turf); }
 <script>
 (() => {
   const $ = id => document.getElementById(id);
-  const GAME_VERSION = '0.38.0';   // bump with every release
+  const GAME_VERSION = '0.39.0';   // bump with every release
   const SAVE_KEY = 'fairway-tycoon-v2';
   // The desktop build (Electron) exposes window.fairwayPlatform; in a browser this is null and saves stay in localStorage.
   const Platform = window.fairwayPlatform || null;
@@ -1065,6 +1110,11 @@ label.auto input { accent-color: var(--turf); }
   }
   // older parks had one range, with its upgrades and staff kept park-wide: hand them to the first range
   function clampLevels() {
+    if (S.startDay == null && S.scenario) {
+      const sc = typeof scenOf === 'function' ? scenOf(S.scenario) : null;
+      S.startDay = S.day; S.diff ||= 'normal'; S.medal ||= 0; S.over = null; S.finished = false; S.peakStars ||= 0; S.repLow = 0; S.lastReview = { stars: null, medal: 0 };
+      if (sc && sc.id !== 'sandbox' && sc.years) { S.deadline = S.day + sc.years * 36; S.board = 60; } else { S.deadline = null; S.board = null; }
+    }
     // saves from before the economy rebalance: prices go back to fair value once
     if ((S.econ || 1) < 2) {
       S.econ = 2;
@@ -1264,7 +1314,7 @@ label.auto input { accent-color: var(--turf); }
   for (let r = 0; r < 9; r++) for (let c = 0; c < 10; c++) PARCELS.push({ id: r * 10 + c, x0: PARCEL_COLS[c], x1: PARCEL_COLS[c + 1], y0: PARCEL_ROWS[r], y1: PARCEL_ROWS[r + 1] });
   const parcelAt = (x, y) => PARCELS.find(p => x >= p.x0 && x < p.x1 && y >= p.y0 && y < p.y1) || null;
   const ownsAt = (design, x, y) => { const p = parcelAt(x, y); return !!p && !!S.world && S.world.land.includes(p.id); };
-  const parcelPrice = () => Math.round(2000 * Math.pow(1.06, S.world ? S.world.land.length : 6) / 100) * 100;
+  const parcelPrice = () => Math.round(2000 * Math.pow(1.06, S.world ? S.world.land.length : 6) * ((S.smod && S.smod.land) || 1) / 100) * 100;
   // places you can't put a tee, green or feature: the range, roads, car parks, footpaths and the clubhouse grounds
   function noBuild(x, y) {
     if (x < 0 || y < 0 || x > W || y > LAND_Y1 - 6) return true;
@@ -1491,8 +1541,8 @@ label.auto input { accent-color: var(--turf); }
     return it;
   }
   const RATES = 0.0015;   // a day, on everything you have built
-  const upkeepPerDay = () => upkeepItems().reduce((a, x) => a + x[1], 0);
-  const wagesPerDay = () => salaries() * DAY_LEN;
+  const upkeepPerDay = () => upkeepItems().reduce((a, x) => a + x[1], 0) * diff().costs;
+  const wagesPerDay = () => salaries() * DAY_LEN * diff().costs;
   const LOAN_RATE = 0.0025;   // per day: about 9% a year
   const interestPerDay = () => (S.loan || 0) * LOAN_RATE + (S.money < 0 ? -S.money * 0.01 : 0);
   const creditLimit = () => Math.max(20000, Math.round((20000 + 0.6 * (S.invested || 0)) / 1000) * 1000);
@@ -1508,8 +1558,8 @@ label.auto input { accent-color: var(--turf); }
   const incomeOf = o => Object.keys(INCOME_CATS).reduce((a, k) => a + Math.max(0, (o || {})[k] || 0), 0);
   function runCosts(dt) {
     upkeepT -= dt; if (upkeepT <= 0) { upkeepT = 2; upkeepCache = upkeepPerDay(); }
-    spend(salaries() * dt, 'wages');
-    spend(upkeepCache * dt / DAY_LEN, 'upkeep');
+    spend(salaries() * dt * diff().costs, 'wages');
+    spend(upkeepCache * dt / DAY_LEN * diff().costs, 'upkeep');
     spend(interestPerDay() * dt / DAY_LEN, 'interest');
   }
   function endOfDay() {
@@ -1518,13 +1568,9 @@ label.auto input { accent-color: var(--turf); }
     L_.days.push({ day: S.day, profit, income: incomeOf(L_.day) });
     if (L_.days.length > 24) L_.days.shift();
     L_.day = {};
-    // the bank keeps an eye on overdrawn accounts
-    if (S.money < 0) {
-      S.redDays = (S.redDays || 0) + 1;
-      if (S.redDays === 2) toast('The bank', 'Your account is overdrawn', 'Borrow money in Finances or cut costs, before the bank steps in.', '!');
-      if (S.redDays === 4) toast('The bank', 'Final warning', 'Two more days in the red and the bank will close the club.', '!');
-      if (S.redDays >= 6) { bankrupt(); return; }
-    } else S.redDays = 0;
+    // the bank keeps an eye on overdrawn accounts; a club nobody likes can be boycotted
+    if (bankDaily()) return;
+    repDaily(); if (S.over) return;
     if (eventRunning() && S.day >= S.event.day + 1) resolveEvent();   // a hard stop after the second day
     const prevMonth = monthIdx();
     S.day++;
@@ -1535,6 +1581,7 @@ label.auto input { accent-color: var(--turf); }
     scheduleRandomEvent();
   }
   function endOfMonth(m) {
+    boardReview({ ...(S.ledger.month || {}) });
     const L_ = S.ledger, profit = sumOf(L_.month), inc = incomeOf(L_.month);
     L_.months.push({ name: MONTHS[m], year: yearOf(S.day - 1), ...L_.month });
     if (L_.months.length > 12) L_.months.shift();
@@ -1549,11 +1596,7 @@ label.auto input { accent-color: var(--turf); }
   }
   function borrow(a) { a = Math.min(a, creditLimit() - (S.loan || 0)); if (a <= 0) return; S.loan = (S.loan || 0) + a; S.money += a; Sound.kaching(); renderFinance(true); save(); }
   function repay(a) { a = Math.min(a, S.loan || 0, Math.max(0, S.money)); if (a <= 0) return; S.loan -= a; S.money -= a; Sound.ui('tap'); renderFinance(true); save(); }
-  function bankrupt() {
-    setSpeed(0);
-    $('bankModal').hidden = false;
-    Sound.ui('soft');
-  }
+  function bankrupt() { gameOver('bank'); }
 
   // ---------- Live sim ----------
   let range = [];   // { t, dur, bay, nextShot, swing, color }
@@ -1576,7 +1619,8 @@ label.auto input { accent-color: var(--turf); }
 
   function pickWeather() {
     let r = Math.random(), acc = 0;
-    for (const [k, w] of WX_BY_SEASON[season()]) { acc += w; if (r < acc) return k; }
+    const ws = WX_BY_SEASON[season()].map(([k, w]) => [k, w * ((S.smod && S.smod['wx_' + k]) || 1)]), tot = ws.reduce((a, x) => a + x[1], 0); r *= tot;
+    for (const [k, w] of ws) { acc += w; if (r < acc) return k; }
     return 'sunny';
   }
 
@@ -3592,6 +3636,7 @@ label.auto input { accent-color: var(--turf); }
     club: () => 45 * (1 + 0.1 * L('reno')),
     checkin: () => 70 * (1 + 0.1 * L('reno')),
   };
+  for (const k of Object.keys(PATIENCE)) { const f = PATIENCE[k]; PATIENCE[k] = () => f() * diff().patience; }
   const WALK = 62;
   const newName = () => FIRST[Math.floor(Math.random() * FIRST.length)] + '. ' + LAST[Math.floor(Math.random() * LAST.length)];
   function arriveVisitor(plan, forceType) {
@@ -4317,7 +4362,7 @@ label.auto input { accent-color: var(--turf); }
     const seasonF = ['spring', 'summer'].includes(season()) ? 1.3 : 0.6;
     // members join a club worth joining: stars set the pace, poor turf and a poor name slow it right down
     const condF = Math.max(0, Math.min(1.2, (S.cond - 50) / 35)), repF = 0.6 + 0.6 * rep / 100;
-    const pot = [0, 0.5, 1.2, 2.5, 4, 6][Math.max(0, Math.min(5, stars()))] * condF * repF * (1 + rating / 400) * valueDemand(1 + (r - 1) * 1.2) * seasonF;
+    const pot = ((S.smod && S.smod.members) || 1) * [0, 0.5, 1.2, 2.5, 4, 6][Math.max(0, Math.min(5, stars()))] * condF * repF * (1 + rating / 400) * valueDemand(1 + (r - 1) * 1.2) * seasonF;
     const join = Math.max(0, Math.min(memberCap() - (S.members || 0), Math.floor(pot + Math.random())));
     const mm = S.memberMood === undefined ? 70 : S.memberMood;
     const churn = Math.min(0.5, 0.08 + Math.max(0, (60 - mm) / 120) + Math.max(0, r - 1) * 0.25 + Math.max(0, (60 - S.cond) / 200));
@@ -4463,15 +4508,10 @@ label.auto input { accent-color: var(--turf); }
       ['Restore the name', 'Reach a reputation of 60.', () => (S.rep || 0) >= 60, 3000],
       ['Three stars', 'Reach a 3-star rating.', () => stars() >= 3, 5000],
       ['Clear the debt', 'Pay off the loan.', () => !(S.loan > 0), 5000],
-      ['Four stars by Year 3', 'Reach a 4-star rating before the end of Year 3.', () => stars() >= 4, 50000, 3],
     ],
     sandbox: [],
   };
-  const SCENARIOS = {
-    fresh: { name: 'Pine Hollow', tag: 'Normal', blurb: 'A small plot beside the road and $30,000. Build a car park, a range, a clubhouse and your first holes, then grow it into a five-star club.' },
-    rescue: { name: 'Pine Hollow Rescue', tag: 'Hard', tagClass: 'hard', blurb: 'You inherit a run-down club: worn turf, a poor reputation and a $30,000 loan. Reach 4 stars by the end of Year 3.' },
-    sandbox: { name: 'Sandbox', tag: 'Creative', tagClass: 'free', blurb: '$1,000,000, no goals and no deadlines. Build the course you have always wanted.' },
-  };
+
   const goalList = () => GOALS[S.scenario || 'fresh'] || [];
   function checkGoals() {
     const list = goalList(), i = S.goalIdx || 0;
@@ -4485,19 +4525,6 @@ label.auto input { accent-color: var(--turf); }
     toast('Goal complete', title, `Reward: ${fmt(reward)}.${S.goalIdx >= list.length ? ' Every goal done. Well played!' : ''}`, '✓');
     Sound.fanfare(); renderPark(); save();
   }
-  function setupScenario(k) {
-    S.scenario = k; S.goalIdx = 0; S.goalFailed = false;
-    if (k === 'fresh') S.money = 30000;
-    if (k === 'rescue') {
-      S.design = defaultDesign(true, null, false); applyDesign();
-      S.staff.keeper = 1;
-      S.world = classicWorld(null); linkRange(S.world); S.design.land = S.world.land;
-      { const ro = S.world.objs.find(o => o.type === 'range'); ro.r = newRangeState(); ro.r.mx = ro.x * TILE + 20; ro.r.lvl.bay = 3; ro.r.staff.attend = 1; S.rangeMigrated = true; }
-      S.money = 8000; S.loan = 30000; S.rep = 42; S.invested = 90000; S.turf = Array.from({ length: 18 }, () => Math.round(rnd(35, 55)));
-    }
-    if (k === 'sandbox') { S.money = 1000000; S.world = freshWorld('sandbox'); S.design.land = S.world.land; }
-    rebuildWorld(); layout();
-  }
 
   // ---- the Park tab
   const setHTML = (id, h) => { const el = $(id); if (el && el._h !== h) { el._h = h; el.innerHTML = h; } };
@@ -4509,8 +4536,9 @@ label.auto input { accent-color: var(--turf); }
       ${Object.entries(sp.parts).map(([k, v]) => `<div class="pk-row"><span>${k}</span><i><em style="width:${Math.round(v / { 'Course design': 30, 'Turf': 20, '18 holes': 10, 'Facilities': 30, 'Reputation': 18 }[k] * 100)}%"></em></i><b>${Math.round(v)}</b></div>`).join('')}
       <p class="muted">${n < 5 ? `${Math.round(sp.total)} points. ${next - Math.round(sp.total)} more for ${n + 1} stars.` : `${Math.round(sp.total)} points: a five-star club.`}</p>`);
     const list = goalList(), gi = S.goalIdx || 0;
-    setHTML('pkGoals', `<div class="pk-h"><h3>${(SCENARIOS[S.scenario || 'fresh'] || SCENARIOS.fresh).name}</h3><span>${list.length ? `${Math.min(gi, list.length)} of ${list.length} goals` : 'No goals'}</span></div>` +
-      (list.length ? list.map(([t, d, , r, y], i) => `<div class="goal ${i < gi ? 'done' : i === gi ? (S.goalFailed ? 'failed' : 'now') : ''}"><i>${i < gi ? '✓' : i + 1}</i><div><b>${t}</b><span>${d}</span></div><em>${fmt(r)}</em></div>`).join('') : '<p class="muted">Sandbox mode: build whatever you like.</p>'));
+    setHTML('pkObjective', objectiveHtml());
+    setHTML('pkGoals', `<div class="pk-h"><h3>Milestones</h3><span>${list.length ? `${Math.min(gi, list.length)} of ${list.length} done · cash rewards` : 'None in this scenario'}</span></div>` +
+      (list.length ? list.map(([t, d, , r, y], i) => `<div class="goal ${i < gi ? 'done' : i === gi ? (S.goalFailed ? 'failed' : 'now') : ''}"><i>${i < gi ? '✓' : i + 1}</i><div><b>${t}</b><span>${d}</span></div><em>${fmt(r)}</em></div>`).join('') : `<p class="muted">${S.scenario === 'sandbox' ? 'Sandbox mode: build whatever you like.' : 'No milestones in this scenario: the objective above is what counts.'}</p>`));
     const ev = S.event;
     setHTML('pkEvents', `<div class="pk-h"><h3>Events</h3><span>${ev ? `${EVENTS[ev.key].label}: ${ev.state === 'running' ? 'today' : dateLabel(ev.day)}` : 'Nothing booked'}</span></div>` +
       Object.entries(EVENTS).map(([k, E]) => {
@@ -4534,7 +4562,7 @@ label.auto input { accent-color: var(--turf); }
   function goalsTick(dt) {
     eventTick(dt);
     goalT += dt; if (goalT < 2) return; goalT = 0;
-    starsC = stars(); checkStars(); checkGoals(); renderPark();
+    starsC = stars(); checkStars(); checkGoals(); checkCampaign(); renderPark();
   }
 
 
@@ -6310,6 +6338,11 @@ label.auto input { accent-color: var(--turf); }
   const totalPar = () => S.holes.reduce((a, h) => a + h.par, 0);
   const staffCount = () => STAFF.reduce((a, x) => a + (RANGE_STAFF.has(x.id) ? 0 : (S.staff[x.id] || 0)), 0) + rangeStaffTotal();
   const ACH = [
+    ['ACH_MEDAL_FIRST', 'On the podium', 'Earn a medal in any campaign scenario.', () => false],
+    ['ACH_MEDAL_GOLD', 'Gold standard', 'Earn a gold medal in a campaign scenario.', () => false],
+    ['ACH_HARD_MEDAL', 'Hard as nails', 'Earn a medal on Hard difficulty.', () => false],
+    ['ACH_CAMPAIGN_DONE', 'Club legend', 'Earn a medal in every campaign scenario.', () => false],
+    ['ACH_CAMPAIGN_GOLD', 'Grand slam', 'Earn gold in every campaign scenario.', () => false],
     ['ACH_FIRST_SALE', 'Open for business', 'Sell something in the pro shop.', () => S.sales >= 1],
     ['ACH_FIRST_BUCKET', 'First bucket', 'Sell your first bucket of balls.', () => S.buckets >= 1],
     ['ACH_BAYS_10', 'Busy tee line', 'Run a range with 10 bays.', () => bays() >= 10],
@@ -7117,7 +7150,7 @@ label.auto input { accent-color: var(--turf); }
   const nowT = () => S.day * DAY_LEN + S.clock;
   const atT = (day, h) => day * DAY_LEN + h / 24 * DAY_LEN;
   const activeMods = () => (S.mods || []).filter(m => (m.start || 0) <= nowT() && nowT() < m.until);
-  function modMult(k) { let x = 1; for (const m of activeMods()) if (m.eff[k] != null) x *= m.eff[k]; return x; }
+  function modMult(k) { let x = smodOf(k); for (const m of activeMods()) if (m.eff[k] != null) x *= m.eff[k]; return x; }
   function modAdd(k) { let x = 0; for (const m of activeMods()) if (m.eff[k] != null) x += m.eff[k]; return x; }
   const modOn = k => activeMods().some(m => m.eff[k]);
   function tempShut(key) { for (const m of activeMods()) if (m.eff.close && m.eff.close.includes(key)) return m; return null; }
@@ -7304,16 +7337,17 @@ label.auto input { accent-color: var(--turf); }
   }
   function showEventCard(ev) {
     evOpen = ev; evSpeed = speedIdx || lastSpeed || 1; setSpeed(0);
-    $('evIcon').textContent = RANDOM_EVENTS[ev.key].icon; $('evKicker').textContent = ev.kicker; $('evTitle').textContent = ev.title; $('evText').textContent = ev.text;
+    $('evIcon').textContent = ev.icon || RANDOM_EVENTS[ev.key].icon; $('evKicker').textContent = ev.kicker; $('evTitle').textContent = ev.title; $('evText').textContent = ev.text;
     $('evOpts').innerHTML = ev.options.map((o, i) => `<button type="button" class="ev-opt${i ? '' : ' primary'}" data-evopt="${i}"><b>${o.label}</b><small>${o.sub}</small></button>`).join('');
     $('evModal').hidden = false; Sound.ui('open');
   }
   $('evOpts').addEventListener('click', e => {
     const b = e.target.closest('[data-evopt]'); if (!b || !evOpen) return;
     const ev = evOpen, opt = ev.options[+b.dataset.evopt], res = opt.apply();
-    logEvent(RANDOM_EVENTS[ev.key].icon, ev.title, res);
+    const evIc = ev.icon || RANDOM_EVENTS[ev.key].icon;
+    if (ev.key !== 'medal') logEvent(evIc, ev.title, res);
     $('evModal').hidden = true; evOpen = null; setSpeed(evSpeed);
-    toast('Club news', ev.title, res, RANDOM_EVENTS[ev.key].icon); Sound.chime(); renderPark(); save();
+    if (ev.key !== 'medal') toast(ev.key === 'bank' ? 'The bank' : 'Club news', ev.title, res, evIc); Sound.chime(); renderPark(); save();
   });
   // a famous visitor's day out ends up in the papers either way
   function celebLeaves(v) {
@@ -7406,6 +7440,322 @@ label.auto input { accent-color: var(--turf); }
     ctx.restore();
   }
 
+  // =====================================================================================
+  // The campaign. Each scenario has its own start, a deadline and three medals; a medal
+  // unlocks the next scenario. You can lose four ways: the bank, the board, the deadline
+  // and a reputation so poor that golfers boycott the club.
+  // =====================================================================================
+  const DIFF = {
+    easy:   { label: 'Easy', blurb: 'More cash, cheaper running costs, patient golfers, a forgiving bank and board.', cash: 1.5, costs: 0.85, patience: 1.25, redDays: 9, repDays: 9, board: 70, boardK: 0.6, score: 0.8 },
+    normal: { label: 'Normal', blurb: 'The game as intended.', cash: 1, costs: 1, patience: 1, redDays: 6, repDays: 6, board: 60, boardK: 1, score: 1 },
+    hard:   { label: 'Hard', blurb: 'Less cash, dearer running costs, impatient golfers, a strict bank and board.', cash: 0.75, costs: 1.15, patience: 0.85, redDays: 4, repDays: 4, board: 50, boardK: 1.4, score: 1.35 },
+  };
+  const diff = () => DIFF[S.diff || 'normal'] || DIFF.normal;
+  const endOfYear = n => 30 + 36 * (n - 1);                  // Year 1 runs March to December, later years January to December
+  const netWorth = () => S.money - (S.loan || 0);
+  const bestMonth = k => Math.max((S.ledger && S.ledger.month && S.ledger.month[k]) || 0, ...((S.ledger && S.ledger.months) || []).map(m => m[k] || 0));
+  const openBaysNow = () => (typeof openBays === 'function' ? openBays() : 0);
+  const fmtK = v => fmt(v);
+  // a condition: what it asks for, whether it's met, and how far along you are
+  const C = {
+    stars: n => ({ t: `${n}-star rating`, ok: () => stars() >= n, now: () => `${stars()}★` }),
+    holes: n => ({ t: `${n} holes built`, ok: () => courseHoles() >= n, now: () => `${courseHoles()}` }),
+    members: n => ({ t: `${n} members`, ok: () => (S.members || 0) >= n, now: () => `${S.members || 0}` }),
+    cash: n => ({ t: `${fmtK(n)} in the bank`, ok: () => S.money >= n, now: () => fmt(S.money) }),
+    worth: n => ({ t: `${fmtK(n)} net worth (cash minus loans)`, ok: () => netWorth() >= n, now: () => fmt(netWorth()) }),
+    noLoan: () => ({ t: 'Loan paid off', ok: () => !(S.loan > 0), now: () => S.loan > 0 ? fmt(S.loan) + ' left' : 'paid' }),
+    rep: n => ({ t: `Reputation ${n}+`, ok: () => (S.rep ?? 70) >= n, now: () => `${Math.round(S.rep ?? 70)}` }),
+    turf: n => ({ t: `Turf ${n}% or better`, ok: () => S.cond >= n && courseHoles() > 0, now: () => `${Math.round(S.cond)}%` }),
+    bays: n => ({ t: `${n} range bays open`, ok: () => openBaysNow() >= n, now: () => `${openBaysNow()}` }),
+    rangeMonth: n => ({ t: `${fmtK(n)} range income in one month`, ok: () => bestMonth('range') >= n, now: () => fmt(bestMonth('range')) }),
+    event: (k, label) => ({ t: `A successful ${label}`, ok: () => ((S.eventsDone || {})[k] || 0) >= 1, now: () => ((S.eventsDone || {})[k] || 0) ? 'done' : 'not yet' }),
+    trophies: n => ({ t: `${n} ${n === 1 ? 'trophy' : 'trophies'} won`, ok: () => (S.trophies || 0) >= n, now: () => `${S.trophies || 0}` }),
+    slope: n => ({ t: `Slope ${n}+ from the yellow tees`, ok: () => !!(csCache && csCache.yellow && csCache.yellow.slope >= n && L('back9')), now: () => csCache && csCache.yellow ? `${csCache.yellow.slope}` : '–' }),
+    lights: () => ({ t: 'Floodlights on a range', ok: () => rangeObjs().some(o => o.r && (o.r.lvl.lights || 0) > 0), now: () => rangeObjs().some(o => o.r && (o.r.lvl.lights || 0) > 0) ? 'yes' : 'no' }),
+  };
+  const CAMPAIGN = [
+    { id: 'fresh', name: 'Pine Hollow', tag: 'Start here', blurb: 'A small plot beside the road and $30,000. Build a car park, a range, a clubhouse and your first holes, then grow it into a proper club.',
+      years: 3, medals: [[C.stars(2), C.holes(9)], [C.stars(3), C.members(20)], [C.stars(4), C.holes(18), C.cash(25000)]],
+      setup() { S.money = 30000; } },
+    { id: 'rescue', name: 'The Rescue', tag: 'Turnaround', blurb: 'You inherit a run-down club: worn turf, a poor name and a $30,000 loan. Turn it around before the owners lose patience.',
+      years: 3, medals: [[C.stars(3), C.noLoan()], [C.rep(70)], [C.stars(4), C.members(40)]],
+      setup() {
+        S.design = defaultDesign(true, null, false); applyDesign();
+        S.staff.keeper = 1;
+        S.world = classicWorld(null); linkRange(S.world); S.design.land = S.world.land;
+        { const ro = S.world.objs.find(o => o.type === 'range'); ro.r = newRangeState(); ro.r.mx = ro.x * TILE + 20; ro.r.lvl.bay = 3; ro.r.staff.attend = 1; S.rangeMigrated = true; }
+        S.money = 8000; S.loan = 30000; S.rep = 42; S.invested = 90000; S.turf = Array.from({ length: 18 }, () => Math.round(rnd(35, 55)));
+      } },
+    { id: 'city', name: 'City Lights Range', tag: 'Range', blurb: 'A plot on the edge of town. Commuters love a driving range after work, but few want a round of golf here, and land is expensive.',
+      years: 2, smod: { range: 1.6, course: 0.6, land: 1.8 }, medals: [[C.bays(15), C.rangeMonth(2500)], [C.lights(), C.bays(24), C.stars(3)], [C.rangeMonth(6000), C.worth(30000)]],
+      setup() { S.money = 35000; } },
+    { id: 'seaside', name: 'Seaside Links', tag: 'Course', blurb: 'Dunes, wind and rain off the sea. Golfers will travel for a proper links course, but the range is an afterthought here.',
+      years: 4, smod: { course: 1.3, range: 0.7, wx_windy: 2.2, wx_rain: 1.3 }, medals: [[C.holes(18), C.stars(3)], [C.stars(4), C.turf(85)], [C.event('proam', 'Charity Pro-Am'), C.stars(4)]],
+      setup() { S.money = 60000; } },
+    { id: 'oakmere', name: 'Oakmere Members’ Club', tag: 'Members', blurb: 'A pretty nine-hole club whose public trade has dried up. The money is in memberships now, so build a club people want to belong to.',
+      years: 3, smod: { course: 0.55, members: 1.8 }, medals: [[C.members(35)], [C.members(60), C.stars(3)], [C.members(90), C.stars(4)]],
+      setup() {
+        S.design = defaultDesign(true, null, false); applyDesign();
+        S.staff.keeper = 2;
+        S.world = classicWorld(null); linkRange(S.world); S.design.land = S.world.land;
+        { const ro = S.world.objs.find(o => o.type === 'range'); ro.r = newRangeState(); ro.r.mx = ro.x * TILE + 20; ro.r.lvl.bay = 2; ro.r.staff.attend = 1; S.rangeMigrated = true; }
+        S.money = 25000; S.rep = 66; S.invested = 90000; S.turf = Array.from({ length: 18 }, () => Math.round(rnd(80, 92))); S.members = 12;
+      } },
+    { id: 'frost', name: 'Frostbite', tag: 'Survival', blurb: 'You open in November with little cash and a small loan. Survive the winter, then make the most of a single summer.',
+      years: 2, start: 25, medals: [[C.stars(2), C.cash(10000)], [C.stars(3)], [C.stars(3), C.members(30), C.noLoan()]],
+      setup() { S.money = 18000; S.loan = 10000; } },
+    { id: 'estate', name: 'Kingsbridge Estate', tag: 'Events', blurb: 'A grand old estate course that wants to host tournaments again. Win over the organisers, from a corporate day all the way to the County Championship.',
+      years: 4, medals: [[C.event('corporate', 'corporate golf day')], [C.event('proam', 'Charity Pro-Am')], [C.event('county', 'County Championship'), C.trophies(1)]],
+      setup() {
+        S.design = defaultDesign(true, null, false); applyDesign();
+        S.staff.keeper = 2;
+        S.world = classicWorld(null); linkRange(S.world); S.design.land = S.world.land;
+        { const ro = S.world.objs.find(o => o.type === 'range'); ro.r = newRangeState(); ro.r.mx = ro.x * TILE + 20; ro.r.lvl.bay = 4; ro.r.staff.attend = 1; S.rangeMigrated = true; }
+        S.money = 60000; S.rep = 62; S.invested = 90000; S.turf = Array.from({ length: 18 }, () => Math.round(rnd(70, 85)));
+      } },
+    { id: 'champ', name: 'The Championship Course', tag: 'Finale', blurb: 'An investor gives you $120,000 and five years to build the finest club in the county: five stars, a testing course and silverware.',
+      years: 5, medals: [[C.stars(5)], [C.stars(5), C.slope(125)], [C.stars(5), C.trophies(2), C.worth(250000)]],
+      setup() { S.money = 120000; } },
+  ];
+  const SANDBOX = { id: 'sandbox', name: 'Sandbox', tag: 'Creative', blurb: '$1,000,000, every plot of land, no goals, no deadline and no board. Build the course you have always wanted.',
+    setup() { S.money = 1000000; S.world = freshWorld('sandbox'); S.design.land = S.world.land; } };
+  const scenOf = id => CAMPAIGN.find(s => s.id === id) || (id === 'sandbox' ? SANDBOX : null);
+  const inCampaign = () => !!CAMPAIGN.find(s => s.id === S.scenario);
+  const MEDAL = ['None', 'Bronze', 'Silver', 'Gold'], MEDAL_IC = ['–', '🥉', '🥈', '🥇'];
+  // campaign progress lives with your settings, so it carries across saves
+  const campaignOf = () => (SETTINGS.campaign ||= {});
+  const unlocked = i => i < 2 || ((campaignOf()[CAMPAIGN[i - 1].id] || {}).medal || 0) >= 1;
+  // scenario modifiers fold into the same multipliers as random events
+  const smodOf = k => (S.smod && S.smod[k]) || 1;
+
+  // ---- starting a scenario
+  function setupScenario(k, d = 'normal') {
+    const sc = scenOf(k) || CAMPAIGN[0];
+    S.scenario = sc.id; S.goalIdx = 0; S.goalFailed = false; S.diff = d; S.smod = sc.smod ? { ...sc.smod } : null;
+    if (sc.start) { S.day = sc.start; S.clock = 7 * 15; }
+    sc.setup();
+    if (sc.id !== 'sandbox') { S.money = Math.round(S.money * diff().cash); S.deadline = endOfYear(sc.years); }
+    S.startDay = S.day; S.medal = 0; S.board = sc.id === 'sandbox' ? null : diff().board; S.boardLog = []; S.over = null; S.finished = false;
+    S.peakStars = 0; S.repLow = 0; S.lastReview = { stars: null, medal: 0 }; S.econ = 2;
+    rebuildWorld(); layout();
+  }
+
+  // ---- medals: each tier needs its own conditions and every tier below it
+  const tierMet = (sc, t) => sc.medals.slice(0, t + 1).every(list => list.every(c => { try { return c.ok(); } catch { return false; } }));
+  function medalNow(sc) { let m = 0; for (let t = 0; t < 3; t++) if (tierMet(sc, t)) m = t + 1; else break; return m; }
+  function checkCampaign() {
+    if (!gameLive || atTitle || S.over) return;
+    const sc = scenOf(S.scenario); if (!sc || sc.id === 'sandbox') return;
+    S.peakStars = Math.max(S.peakStars || 0, stars());
+    if (S.finished) return;
+    const m = medalNow(sc);
+    if (m > (S.medal || 0)) {
+      S.medal = m; S.medalDay = S.day;
+      recordResult(sc, m);
+      if (m === 3) { showEnd('gold'); return; }
+      showMedalCard(sc, m);
+    }
+    if (S.deadline && S.day > S.deadline) { if (S.medal > 0) showEnd('deadline-won'); else gameOver('deadline'); }
+  }
+  function recordResult(sc, m) {
+    const c = campaignOf(), prev = c[sc.id] || {};
+    const sc2 = scoreOf(m);
+    c[sc.id] = { medal: Math.max(prev.medal || 0, m), score: Math.max(prev.score || 0, sc2), diff: (prev.medal || 0) > m ? prev.diff : S.diff };
+    saveSettings();
+    if (m >= 1) unlockAch('ACH_MEDAL_FIRST');
+    if (m >= 3) unlockAch('ACH_MEDAL_GOLD');
+    if (CAMPAIGN.every(s => ((c[s.id] || {}).medal || 0) >= 1)) unlockAch('ACH_CAMPAIGN_DONE');
+    if (CAMPAIGN.every(s => ((c[s.id] || {}).medal || 0) >= 3)) unlockAch('ACH_CAMPAIGN_GOLD');
+    if (S.diff === 'hard' && m >= 1) unlockAch('ACH_HARD_MEDAL');
+  }
+  function scoreOf(m) {
+    const left = Math.max(0, (S.deadline || S.day) - S.day);
+    return Math.round(([0, 1000, 2000, 3500][m] + Math.max(0, netWorth()) / 50 + (S.peakStars || stars()) * 150 + (S.rep ?? 70) * 4 + (S.members || 0) * 5 + left * 12) * diff().score);
+  }
+  function unlockAch(id) { S.ach ||= {}; if (!S.ach[id]) { S.ach[id] = Date.now(); steamCall('unlock', id); const a = ACH.find(x => x[0] === id); if (a) toast('Achievement unlocked', a[1], a[2], '★'); } }
+
+  // ---- the board reviews the club every month
+  function boardReview(monthLedger) {
+    const sc = scenOf(S.scenario); if (!sc || sc.id === 'sandbox' || S.board == null || S.over || S.finished) return;
+    const k = diff().boardK, notes = [], monthsIn = Math.floor((S.day - (S.startDay || 1)) / MONTH_DAYS);
+    let d = 0;
+    const L_ = monthLedger || {}, build = -(L_.build || 0), op = sumOf(L_) + build;   // operating profit: investment doesn't count against you
+    if (op > 2000) { d += 6; notes.push(['+6', `operating profit ${fmt(op)}`]); }
+    else if (op > 0) { d += 3; notes.push(['+3', `a small operating profit`]); }
+    else if (monthsIn >= 2) { const p = -Math.round((op < -2000 ? 8 : 4) * k); d += p; notes.push([`${p}`, `an operating loss of ${fmt(-op)}`]); }
+    const st = stars(), ls = S.lastReview && S.lastReview.stars;
+    if (ls != null && st > ls) { d += 6; notes.push(['+6', `up to ${st} stars`]); }
+    if (ls != null && st < ls) { const p = -Math.round(8 * k); d += p; notes.push([`${p}`, `down to ${st} stars`]); }
+    const rp = S.rep ?? 70;
+    if (rp >= 70) { d += 2; notes.push(['+2', 'a good name locally']); }
+    else if (rp < 35) { const p = -Math.round((rp < 22 ? 8 : 4) * k); d += p; notes.push([`${p}`, 'a poor reputation']); }
+    if ((S.medal || 0) > ((S.lastReview && S.lastReview.medal) || 0)) { d += 10; notes.push(['+10', `${MEDAL[S.medal]} objective reached`]); }
+    if (S.money < 0) { const p = -Math.round(8 * k); d += p; notes.push([`${p}`, 'the account is overdrawn']); }
+    const before = S.board; S.board = Math.max(0, Math.min(100, S.board + d));
+    S.lastReview = { stars: st, medal: S.medal || 0 };
+    S.boardLog = [{ day: S.day, d, notes, board: S.board }, ...(S.boardLog || [])].slice(0, 6);
+    if (S.board <= 0) { gameOver('board'); return; }
+    const tone = d > 0 ? 'pleased' : d < 0 ? 'concerned' : 'satisfied';
+    toast('Board review', `Confidence ${Math.round(S.board)}% (${d >= 0 ? '+' : ''}${d})`, `The board is ${tone}: ${notes.map(n => n[1]).join(', ') || 'nothing much to report'}.`, d >= 0 ? '🏛' : '!');
+    if (S.board <= 30 && before > 30) toast('The board', 'The board is losing patience', 'If confidence reaches zero you will be dismissed. Turn a profit, lift the star rating or reach the next objective.', '!');
+  }
+
+  // ---- reputation collapse: checked every day
+  function repDaily() {
+    if (!inCampaign() || S.over || S.finished) return;
+    if ((S.rep ?? 70) < 15) {
+      S.repLow = (S.repLow || 0) + 1;
+      const left = diff().repDays - S.repLow;
+      if (left <= 0) { gameOver('rep'); return; }
+      toast('Boycott', 'Golfers are staying away', `Your reputation is so poor that people are boycotting the club. Get it above 15 within ${left} day${left > 1 ? 's' : ''} or the club closes.`, '!');
+    } else S.repLow = 0;
+  }
+  // ---- the bank: warnings, a forecast and one emergency loan
+  function bankDaily() {
+    if (S.over) return;
+    const lim = diff().redDays;
+    if (S.money < 0) {
+      S.redDays = (S.redDays || 0) + 1;
+      const left = lim - S.redDays;
+      if (left <= 0) { gameOver('bank'); return true; }
+      if (left === lim - 1 || left === 2) toast('The bank', S.redDays === 1 ? 'Your account is overdrawn' : 'Final warning from the bank', `${left} more day${left > 1 ? 's' : ''} in the red and the bank closes the club. Borrow in Finances, raise prices or cut costs.`, '!');
+      if (left === 1 && !S.rescueLoan) offerRescueLoan();
+    } else S.redDays = 0;
+    return false;
+  }
+  function offerRescueLoan() {
+    S.rescueLoan = true;
+    const amt = roundTo(Math.max(5000, -S.money + (wagesPerDay() + upkeepPerDay()) * 4), 500), owe = Math.round(amt * 1.3);
+    evQueue.unshift({ key: 'bank', icon: '🏦', kicker: 'The bank', title: 'A last chance', text: `You are one day from being closed down. The bank will lend you ${fmt(amt)} to keep going, but you will owe ${fmt(owe)}. This offer will not come again.`,
+      options: [
+        { label: `Take ${fmt(amt)}`, sub: `Adds ${fmt(owe)} to your loan · clears the overdraft`, apply() { S.money += amt; S.loan = (S.loan || 0) + owe; S.redDays = 0; return `You took the emergency loan. You now owe the bank ${fmt(S.loan)}.`; } },
+        { label: 'Refuse', sub: 'Get out of the red by tomorrow, or the club closes', apply: () => 'You refused the emergency loan.' }] });
+  }
+  // how long the money lasts at the current rate
+  function cashForecast() {
+    const ds = ((S.ledger && S.ledger.days) || []).slice(-3);
+    if (!ds.length) return null;
+    const avg = ds.reduce((a, d) => a + d.profit, 0) / ds.length;
+    if (avg >= 0) return { avg, days: null };
+    return { avg, days: Math.max(0, Math.floor(S.money / -avg)) };
+  }
+
+  // ---- the end: a medal, or game over
+  const END = {
+    gold: { ic: '🥇', kicker: 'Scenario complete', title: 'Gold medal!', text: () => `You reached every objective at ${clubName()}. A superb piece of management.` },
+    'deadline-won': { ic: () => MEDAL_IC[S.medal], kicker: 'Deadline reached', title: () => `${MEDAL[S.medal]} medal`, text: () => `Time is up at ${clubName()}. You finished with a ${MEDAL[S.medal].toLowerCase()} medal.` },
+    finish: { ic: () => MEDAL_IC[S.medal], kicker: 'Scenario complete', title: () => `${MEDAL[S.medal]} medal`, text: () => `You chose to finish at ${clubName()} with a ${MEDAL[S.medal].toLowerCase()} medal.` },
+    bank: { ic: '🏦', kicker: 'Game over', title: 'The bank has closed your club', text: () => `${clubName()} spent too long in the red. The bank has taken over the park and its debts.`, lose: true },
+    board: { ic: '🏛', kicker: 'Game over', title: 'The board has dismissed you', text: () => `Confidence in your management ran out. The owners of ${clubName()} have appointed someone else.`, lose: true },
+    deadline: { ic: '⌛', kicker: 'Game over', title: 'Out of time', text: () => `The deadline passed without reaching the bronze objective at ${clubName()}.`, lose: true },
+    rep: { ic: '📉', kicker: 'Game over', title: 'The club has closed', text: () => `Nobody wants to play at ${clubName()} any more. With golfers boycotting it, the club had to close its doors.`, lose: true },
+  };
+  function gameOver(cause) { if (S.over) return; S.over = cause; showEnd(cause); }
+  function showEnd(kind) {
+    const E = END[kind], val = v => (typeof v === 'function' ? v() : v), sc = scenOf(S.scenario);
+    if (!E.lose) { S.finished = true; recordResult(sc, S.medal); }
+    setSpeed(0); evOpen = null; $('evModal').hidden = true;
+    const i = CAMPAIGN.findIndex(s => s.id === S.scenario), next = CAMPAIGN[i + 1], canNext = !E.lose && next && unlocked(i + 1);
+    const days = S.day - (S.startDay || 1), score = E.lose ? 0 : scoreOf(S.medal);
+    $('endIcon').textContent = val(E.ic); $('endKicker').textContent = `${val(E.kicker)} · ${sc ? sc.name : ''} · ${diff().label}`;
+    $('endTitle').textContent = val(E.title); $('endText').textContent = val(E.text);
+    $('endStats').innerHTML = [['Time', `${Math.floor(days / 36) ? Math.floor(days / 36) + 'y ' : ''}${Math.floor((days % 36) / 3)}m`], ['Best rating', `${S.peakStars || stars()}★`], ['Members', S.members || 0], ['Net worth', fmt(netWorth())], ['Reputation', Math.round(S.rep ?? 70)], ['Score', E.lose ? '–' : score.toLocaleString('en-US')]]
+      .map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('');
+    $('endBtns').innerHTML = (canNext ? `<button class="buy" type="button" data-end="next">Next: ${next.name}</button>` : '')
+      + (!E.lose ? `<button class="ghost" type="button" data-end="keep">Keep playing</button>` : `<button class="buy" type="button" data-end="retry">Try again</button><button class="ghost" type="button" data-end="load">Load a save</button>`)
+      + `<button class="ghost" type="button" data-end="menu">Main menu</button>`;
+    $('endModal').hidden = false; $('endModal').classList.toggle('lose', !!E.lose);
+    if (E.lose) Sound.ui('soft'); else Sound.fanfare();
+    save();
+  }
+  $('endBtns').addEventListener('click', e => {
+    const b = e.target.closest('[data-end]'); if (!b) return;
+    const k = b.dataset.end;
+    if (k === 'keep') { $('endModal').hidden = true; setSpeed(1); toast('Free play', 'Keep building', 'The scenario is over and its medal is saved. Play on as long as you like.', '⛳'); return; }
+    if (k === 'retry') { $('endModal').hidden = true; startScenario(S.scenario, S.diff, clubName()); return; }
+    if (k === 'next') { const i = CAMPAIGN.findIndex(s => s.id === S.scenario); $('endModal').hidden = true; scenPick = CAMPAIGN[i + 1].id; deleteSlot('auto'); gameLive = false; openTitle('new'); return; }
+    if (k === 'load') { $('endModal').hidden = true; deleteSlot('auto'); gameLive = false; openTitle('load'); return; }
+    $('endModal').hidden = true; if (S.over) deleteSlot('auto'); gameLive = false; openTitle('main');
+  });
+  // a medal along the way: carry on for the next one, or finish now
+  function showMedalCard(sc, m) {
+    const nextTier = sc.medals[m];
+    evQueue.unshift({ key: 'medal', icon: MEDAL_IC[m], kicker: 'Objective reached', title: `${MEDAL[m]} medal`, text: `You have earned ${MEDAL[m].toLowerCase()} at ${clubName()}${m === 1 && CAMPAIGN[CAMPAIGN.indexOf(sc) + 1] ? `, and ${CAMPAIGN[CAMPAIGN.indexOf(sc) + 1].name} is unlocked` : ''}. ${nextTier ? `For ${MEDAL[m + 1].toLowerCase()}: ${nextTier.map(c => c.t.toLowerCase()).join(', ')}.` : ''}`,
+      options: [
+        { label: `Go for ${MEDAL[m + 1].toLowerCase()}`, sub: `You have until ${dateLabel(S.deadline)}`, apply: () => `Pushing on for ${MEDAL[m + 1].toLowerCase()}.` },
+        { label: `Finish with ${MEDAL[m].toLowerCase()}`, sub: 'See your result now', apply() { setTimeout(() => showEnd('finish'), 50); return `You finished with ${MEDAL[m].toLowerCase()}.`; } }] });
+  }
+
+  // ---- the objective panel in Park → Goals, and the status pill
+  function timeLeftTxt() {
+    if (!S.deadline) return '';
+    const d = Math.max(0, S.deadline - S.day + (1 - S.clock / DAY_LEN)), months = d / MONTH_DAYS;
+    return months >= 12 ? `${Math.floor(months / 12)}y ${Math.floor(months % 12)}m left` : months >= 1 ? `${Math.floor(months)} month${Math.floor(months) === 1 ? '' : 's'} left` : `${Math.ceil(d)} day${Math.ceil(d) === 1 ? '' : 's'} left`;
+  }
+  function objectiveHtml() {
+    const sc = scenOf(S.scenario);
+    if (!sc || sc.id === 'sandbox') return `<div class="pk-h"><h3>Sandbox</h3><span>No objectives, no deadline</span></div><p class="muted" style="margin:0">Build whatever you like. Only the bank can stop you.</p>`;
+    const tiers = sc.medals.map((list, t) => {
+      const got = (S.medal || 0) > t;
+      return `<div class="tier ${got ? 'got' : (S.medal || 0) === t ? 'now' : ''}"><i>${MEDAL_IC[t + 1]}</i><div><b>${MEDAL[t + 1]}${t ? ' <small>also needs everything above</small>' : ''}</b>${list.map(c => { let ok = false; try { ok = c.ok(); } catch {} return `<span class="${ok ? 'ok' : ''}">${ok ? '✓' : '○'} ${c.t} <em>${c.now()}</em></span>`; }).join('')}</div></div>`;
+    }).join('');
+    const fc = cashForecast(), b = S.board, bl = (S.boardLog || [])[0];
+    return `<div class="pk-h"><h3>${sc.name}</h3><span>${diff().label} · ${S.finished ? 'finished' : `deadline ${dateLabel(S.deadline)} · ${timeLeftTxt()}`}</span></div>
+      ${S.medal ? `<p class="medal-now">${MEDAL_IC[S.medal]} ${MEDAL[S.medal]} medal earned</p>` : ''}${tiers}
+      ${b != null ? `<div class="board"><div class="pk-h"><b>Board confidence</b><span>${Math.round(b)}%</span></div><div class="meter"><i class="${b < 30 ? 'full' : b >= 60 ? 'good' : ''}" style="width:${b}%"></i></div>
+        ${bl ? `<p class="muted">Last review (${dateLabel(bl.day, true)}): ${bl.notes.map(n => `<span class="${n[0][0] === '-' ? 'neg' : 'pos'}">${n[0]}</span> ${n[1]}`).join(' · ') || 'no change'}</p>` : '<p class="muted">The board reviews the club at the end of every month: operating profit, stars, reputation and objectives.</p>'}</div>` : ''}
+      ${fc && fc.days != null && S.money >= 0 ? `<p class="warn-line">At the current rate the money runs out in about ${fc.days} day${fc.days === 1 ? '' : 's'}.</p>` : ''}
+      ${S.money < 0 ? `<p class="warn-line">Overdrawn: ${Math.max(0, diff().redDays - (S.redDays || 0))} day${diff().redDays - (S.redDays || 0) === 1 ? '' : 's'} before the bank closes the club.</p>` : ''}
+      ${(S.repLow || 0) > 0 ? `<p class="warn-line">Golfers are boycotting the club: ${diff().repDays - S.repLow} days to lift the reputation above 15.</p>` : ''}`;
+  }
+  function refreshGoalPill() {
+    const el = $('pillGoal'), sc = scenOf(S.scenario);
+    if (!el) return;
+    if (!sc || sc.id === 'sandbox' || atTitle) { if (!el.hidden) el.hidden = true; return; }
+    let h, lvl = '';
+    if (S.money < 0) { h = `Overdrawn · ${Math.max(0, diff().redDays - (S.redDays || 0))}d to bank closure`; lvl = 'bad'; }
+    else if ((S.repLow || 0) > 0) { h = `Boycott · ${diff().repDays - S.repLow}d left`; lvl = 'bad'; }
+    else if (S.board != null && S.board < 30 && !S.finished) { h = `Board confidence ${Math.round(S.board)}%`; lvl = 'warn'; }
+    else if (S.finished) h = `${MEDAL_IC[S.medal]} ${MEDAL[S.medal]} · free play`;
+    else {
+      const t = Math.min(2, S.medal || 0), list = sc.medals[t], done = list.filter(c => { try { return c.ok(); } catch { return false; } }).length;
+      h = `${S.medal ? MEDAL_IC[S.medal] + ' ' : ''}${MEDAL[t + 1]} ${done}/${list.length} · ${timeLeftTxt()}`;
+    }
+    const html = `<i class="${lvl}"></i>${h}`; if (el._h !== html) { el._h = html; el.innerHTML = html; } el.hidden = false;
+  }
+  $('pillGoal').addEventListener('click', () => { openPanel('park:goals'); Sound.ui('open'); });
+
+  // ---- the new-game screen: the campaign ladder, difficulty and a scenario's objectives
+  let diffPick = 'normal';
+  function campaignListHtml() {
+    const c = campaignOf();
+    const card = (s, i, locked) => { const r = c[s.id] || {}; return `<button class="scen${locked ? ' locked' : ''}" type="button" data-scen="${s.id}" aria-pressed="${s.id === scenPick}" ${locked ? 'aria-disabled="true"' : ''}>
+        <b><span class="scen-n">${i == null ? '∞' : i + 1}</span>${s.name}<em>${locked ? '🔒' : r.medal ? MEDAL_IC[r.medal] + ' ' + MEDAL[r.medal] : s.tag}</em></b>${s.id === scenPick && !locked ? `<span>${s.blurb}</span>` : locked ? `<span class="lk">Earn a medal on ${CAMPAIGN[i - 1].name} to unlock</span>` : ''}</button>`; };
+    return CAMPAIGN.map((s, i) => card(s, i, !unlocked(i))).join('') + card(SANDBOX, null, false);
+  }
+  function scenDetailHtml() {
+    const s = scenOf(scenPick); if (!s) return '';
+    if (s.id === 'sandbox') return '<p class="muted">No objectives, no deadline and no board. Only the bank can end the game.</p>';
+    const r = campaignOf()[s.id] || {};
+    return `<div class="scen-detail"><div class="sd-h"><b>Deadline: end of Year ${s.years}</b>${r.medal ? `<span>Best: ${MEDAL_IC[r.medal]} ${MEDAL[r.medal]} · ${(r.score || 0).toLocaleString('en-US')} pts</span>` : ''}</div>
+      ${s.medals.map((list, t) => `<div class="sd-row"><i>${MEDAL_IC[t + 1]}</i><span>${list.map(c => c.t).join(' · ')}</span></div>`).join('')}</div>`;
+  }
+  function renderNewGame() {
+    if (!unlocked(Math.max(0, CAMPAIGN.findIndex(s => s.id === scenPick))) && scenPick !== 'sandbox') scenPick = 'fresh';
+    $('scenList').innerHTML = campaignListHtml();
+    $('diffSeg').innerHTML = Object.entries(DIFF).map(([k, d]) => `<button type="button" data-diff="${k}" aria-pressed="${k === diffPick}">${d.label}</button>`).join('');
+    $('diffBlurb').textContent = scenPick === 'sandbox' ? 'Difficulty does not apply to the sandbox.' : DIFF[diffPick].blurb;
+    $('scenDetail').innerHTML = scenDetailHtml();
+  }
+  $('diffSeg').addEventListener('click', e => { const b = e.target.closest('[data-diff]'); if (!b) return; diffPick = b.dataset.diff; renderNewGame(); Sound.ui('tap'); });
+  function startScenario(id, d, name) {
+    newPark(); setupScenario(id, d); ensurePrices();
+    S.parkName = name || 'Pine Hollow Golf Club'; gameLive = true;
+    closeTitle(); recenter(); renderPark(); save(); Sound.chime();
+    const sc = scenOf(id);
+    toast('Welcome', S.parkName, sc.id === 'sandbox' ? 'Build whatever you like. Open Build to get started.' : `${sc.name} · ${DIFF[d].label}. Your objectives are in Park → Goals. Deadline: ${dateLabel(S.deadline)}.`, '⛳');
+  }
+
   // clicking a building opens the window that runs it
   function buildingAt(wx, wy) {
     const t = tileOf(wx, wy); if (t.tx < 0 || t.ty < 0 || t.tx >= GW || t.ty >= GH) return null;
@@ -7441,8 +7791,8 @@ label.auto input { accent-color: var(--turf); }
       const first = $('titleMain').querySelector('.tm:not([hidden]):not(:disabled)'); first && first.focus({ preventScroll: true });
     }
     if (p === 'new') {
-      $('parkNameIn').value = 'Pine Hollow Golf Club';
-      $('scenList').innerHTML = Object.entries(SCENARIOS).map(([k, s]) => `<button class="scen" type="button" data-scen="${k}" aria-pressed="${k === scenPick}"><b>${s.name}<em class="${s.tagClass || ''}">${s.tag}</em></b><span>${s.blurb}</span></button>`).join('');
+      $('parkNameIn').value = ({ fresh: 'Pine Hollow Golf Club', rescue: 'Pine Hollow Golf Club', city: 'City Lights Golf Centre', seaside: 'Seaside Links', oakmere: 'Oakmere Golf Club', frost: 'Frostbite Golf Club', estate: 'Kingsbridge Estate', champ: 'The Championship Club', sandbox: 'My Golf Club' })[scenPick] || 'Pine Hollow Golf Club';
+      renderNewGame();
     }
     if (p === 'load') renderSlots($('titleSlots'), 'load');
   }
@@ -7456,16 +7806,14 @@ label.auto input { accent-color: var(--turf); }
     else if (k === 'quit') { save(); try { Platform.quit(); } catch {} }
   });
   $('scenList').addEventListener('click', e => {
-    const b = e.target.closest('[data-scen]'); if (!b) return;
-    scenPick = b.dataset.scen;
-    $('scenList').querySelectorAll('[data-scen]').forEach(x => x.setAttribute('aria-pressed', x === b));
+    const b = e.target.closest('[data-scen]'); if (!b || b.getAttribute('aria-disabled') === 'true') { if (b) Sound.ui('soft'); return; }
+    const was = scenPick; scenPick = b.dataset.scen; Sound.ui('tap');
+    if (was !== scenPick) $('parkNameIn').value = ({ fresh: 'Pine Hollow Golf Club', rescue: 'Pine Hollow Golf Club', city: 'City Lights Golf Centre', seaside: 'Seaside Links', oakmere: 'Oakmere Golf Club', frost: 'Frostbite Golf Club', estate: 'Kingsbridge Estate', champ: 'The Championship Club', sandbox: 'My Golf Club' })[scenPick] || $('parkNameIn').value;
+    renderNewGame();
   });
   function startNewGame() {
     const name = ($('parkNameIn').value || '').trim().slice(0, 32) || 'Pine Hollow Golf Club';
-    newPark(); setupScenario(scenPick); ensurePrices();
-    S.parkName = name; gameLive = true;
-    closeTitle(); recenter(); renderPark(); save(); Sound.chime();
-    toast('Welcome', name, scenPick === 'sandbox' ? 'Build whatever you like. Open Build to get started.' : 'Your first goals are in the Park window.', '⛳');
+    startScenario(scenPick, scenPick === 'sandbox' ? 'normal' : diffPick, name);
   }
   $('startBtn').addEventListener('click', startNewGame);
   $('parkNameIn').addEventListener('keydown', e => { if (e.key === 'Enter') startNewGame(); e.stopPropagation(); });
@@ -8324,7 +8672,7 @@ label.auto input { accent-color: var(--turf); }
     Sound.update(dt, audioScene());
     uiT += dt; saveT += dt;
     refreshTop();
-    if (uiT > 0.25) { uiT = 0; if (treesDirty && !(gesture && gesture.type === 'paint')) { treesDirty = false; layout(); } refreshList(); refreshStats(); refreshHud(); paintInspector(); refreshFac(); renderPeople(); refreshEventPill(); refreshSheetSub(); renderFinance(); if (sheetOpen && tab === 'tee') renderTeeSheet(); measurePads(); clampCam(); }
+    if (uiT > 0.25) { uiT = 0; if (treesDirty && !(gesture && gesture.type === 'paint')) { treesDirty = false; layout(); } refreshList(); refreshStats(); refreshHud(); paintInspector(); refreshFac(); renderPeople(); refreshEventPill(); refreshGoalPill(); refreshSheetSub(); renderFinance(); if (sheetOpen && tab === 'tee') renderTeeSheet(); measurePads(); clampCam(); }
     if (saveT > 5) { saveT = 0; save(); }
     achT += dt; if (achT > 1) { achT = 0; checkAchievements(); }
     presT += dt; if (presT > 20) { presT = 0; updatePresence(); }

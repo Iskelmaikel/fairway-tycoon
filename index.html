@@ -136,6 +136,11 @@ body {
 .set-row b { font-variant-numeric: tabular-nums; text-align: right; color: var(--muted); font-size: 13px; }
 .set-row input[type=range] { width: 100%; accent-color: var(--turf); }
 .set-row.check { grid-template-columns: 1fr auto; }
+.set-row.pick { grid-template-columns: 1fr 160px 44px; }
+.set-row select { width: 100%; font: 600 13px var(--font-body); padding: 5px 6px; border-radius: 8px; border: 1px solid #c9d8cc; background: #fff; color: var(--ink); }
+.set-row .skip { border: 0; border-radius: 8px; background: #e7f0e9; color: var(--ink); font-size: 14px; padding: 5px 0; cursor: pointer; }
+.now-playing { position: fixed; right: calc(6px + env(safe-area-inset-right, 0px)); bottom: calc(18px + env(safe-area-inset-bottom, 0px)); z-index: 5; pointer-events: none; user-select: none; font: 700 11px var(--font-body); color: #fff; opacity: 0; transform: translateY(4px); transition: opacity 0.6s, transform 0.6s; text-shadow: 0 1px 2px rgba(0,0,0,0.6); }
+.now-playing.show { opacity: 0.75; transform: none; }
 .set-row.check input { width: 20px; height: 20px; accent-color: var(--turf); }
 .keys h3 { margin: 8px 0 6px; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
 .keygrid { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; font-size: 13px; color: var(--ink); align-items: baseline; }
@@ -743,6 +748,8 @@ label.auto input { accent-color: var(--turf); }
     <div class="set-head"><h2 id="setTitle">Settings</h2><button class="close" id="settingsClose" type="button" aria-label="Close settings" style="background:#e7f0e9;color:var(--ink)">×</button></div>
     <label class="set-row"><span>Interface size</span><input type="range" id="setUi" min="0.8" max="1.6" step="0.05"><b id="setUiV"></b></label>
     <label class="set-row"><span>Master volume</span><input type="range" id="setMaster" min="0" max="1" step="0.05"><b id="setMasterV"></b></label>
+    <label class="set-row"><span>Music</span><input type="range" id="setMusic" min="0" max="1" step="0.05"><b id="setMusicV"></b></label>
+    <label class="set-row pick"><span>Soundtrack</span><select id="setTrack"></select><button type="button" id="setSkip" class="skip" title="Next tune (N)" aria-label="Next tune">⏭</button></label>
     <label class="set-row"><span>Ambience</span><input type="range" id="setAmb" min="0" max="1" step="0.05"><b id="setAmbV"></b></label>
     <label class="set-row"><span>Effects</span><input type="range" id="setSfx" min="0" max="1" step="0.05"><b id="setSfxV"></b></label>
     <label class="set-row"><span>Camera speed</span><input type="range" id="setCam" min="0.4" max="2.5" step="0.1"><b id="setCamV"></b></label>
@@ -759,6 +766,7 @@ label.auto input { accent-color: var(--turf); }
         <kbd>Space</kbd><span>Pause or resume</span>
         <kbd>, and .</kbd><span>Slower and faster</span>
         <kbd>H</kbd><span>Recenter the camera</span>
+        <kbd>N</kbd><span>Next tune</span>
         <kbd>M</kbd><span>Mute or unmute</span>
         <kbd>F</kbd><span>Fullscreen</span>
         <kbd>F5</kbd><span>Quick save</span>
@@ -772,6 +780,7 @@ label.auto input { accent-color: var(--turf); }
 
 <div class="toasts" id="toasts" aria-live="polite"></div>
 <div class="ver-mark" id="verMark" aria-hidden="true"></div>
+<div class="now-playing" id="nowPlaying" aria-live="polite"></div>
 <div class="paused-tag" id="pausedTag" hidden>Paused</div>
 <div class="modal" id="bankModal" hidden>
   <div class="card">
@@ -806,7 +815,7 @@ label.auto input { accent-color: var(--turf); }
 <script>
 (() => {
   const $ = id => document.getElementById(id);
-  const GAME_VERSION = '0.33.0';   // bump with every release
+  const GAME_VERSION = '0.34.0';   // bump with every release
   const SAVE_KEY = 'fairway-tycoon-v2';
   // The desktop build (Electron) exposes window.fairwayPlatform; in a browser this is null and saves stay in localStorage.
   const Platform = window.fairwayPlatform || null;
@@ -1118,7 +1127,7 @@ label.auto input { accent-color: var(--turf); }
         p.state = p.target >= 0 ? 'seek' : 'return';
       }
     } else if (p.state === 'return') {
-      if (moveTo(p, machinePos(0).x - 4 + (i % 3) * 6, TEE_Y - 16, sp, dt)) p.state = 'unload';
+      if (moveTo(p, machinePos(0).x - 4 + (i % 3) * 6, TEE_Y - 16, sp, dt)) { p.state = 'unload'; if (warp <= 2 && onScreen(p.x, p.y)) Sound.balls(onScreenX(p.x), zoomVol(), 32); }
     } else if (p.state === 'unload') {
       const give = Math.min(p.load, pickerDrop(cart) * dt, Math.max(0, ballCap() - S.stock));
       p.load -= give; S.stock += give;
@@ -2029,12 +2038,20 @@ label.auto input { accent-color: var(--turf); }
     b.flying = false; b.x = sh.to.x; b.y = sh.to.y;
     if (sh.holed) {
       b.lie = 'holed';
-      if (warp <= 2 && onScreen(b.x, b.y)) Sound.cup(onScreenX(b.x), zoomVol());
+      if (warp <= 2 && onScreen(b.x, b.y)) {
+        Sound.cup(onScreenX(b.x), zoomVol());
+        // the group claps a birdie, and cheers an eagle or an ace
+        if (b.strokes < g.pars[h]) setTimeout(() => Sound.applause(onScreenX(b.x), zoomVol(), b.strokes <= g.pars[h] - 2 ? 6 : 3, b.strokes <= g.pars[h] - 2), 350);
+      }
       if (b.strokes === 1) holeInOne(v, h);
       else if (b.strokes <= g.pars[h] - 2) emote(v, 12, 'delighted', ['Eagle!', 'What a shot!'], 0.8);
       else if (b.strokes === g.pars[h] - 1 && Math.random() < 0.5) emote(v, 5, 'happy', ['Birdie!', 'Get in!'], 0.6);
     } else {
       b.lie = lieAt(h, b.x, b.y);
+      if (warp <= 2 && onScreen(b.x, b.y) && sh.kind !== 'putt') {
+        const sx = onScreenX(b.x), zv = zoomVol();
+        if (b.lie === 'water') Sound.splash(sx, zv); else if (b.lie === 'bunker' || b.lie === 'waste') Sound.sand(sx, zv * 0.5); else if (b.lie === 'trees') Sound.tree(sx, zv);
+      }
       if (b.lie === 'water') {
         // penalty stroke and a drop just short of the water
         for (let k = 0; k < 14; k++) splashes.push({ x: b.x, y: b.y, vx: rnd(-30, 30), vy: rnd(-50, -15), life: 0.7, c: '#bfe3ff' });
@@ -2112,7 +2129,12 @@ label.auto input { accent-color: var(--turf); }
       const sh = g.shot; sh.t += dt;
       if (sh.t >= 0 && !sh.struck) {
         sh.struck = true;
-        if (warp <= 2 && onScreen(sh.from.x, sh.from.y) && sh.kind !== 'putt') Sound.strike(onScreenX(sh.from.x), zoomVol() * (sh.kind === 'chip' ? 0.5 : 1));
+        if (warp <= 2 && onScreen(sh.from.x, sh.from.y)) {
+          const sx = onScreenX(sh.from.x), zv = zoomVol();
+          if (sh.kind === 'putt') Sound.putt(sx, zv);
+          else if (sh.fromLie === 'bunker' || sh.fromLie === 'waste') { Sound.sand(sx, zv); Sound.strike(sx, zv * 0.35); }
+          else Sound.strike(sx, zv * (sh.kind === 'chip' ? 0.5 : 1));
+        }
       }
       if (sh.t >= sh.dur) landShot(g);
       return;
@@ -2434,7 +2456,10 @@ label.auto input { accent-color: var(--turf); }
     }
     return true;
   }
-  function driveAway(v) { v.door = 0.7; v.leaveIn = 0.6; }
+  function driveAway(v) {
+    v.door = 0.7; v.leaveIn = 0.6;
+    if (warp <= 2 && onScreen(v.x, v.y)) { const sx = onScreenX(v.x), zv = zoomVol(); Sound.door(sx, zv, false); setTimeout(() => Sound.ignition(sx, zv), 300); }
+  }
   function tickCars(dt) {
     for (const v of vehicles) {
       v.door = Math.max(0, v.door - dt);
@@ -2442,7 +2467,7 @@ label.auto input { accent-color: var(--turf); }
         v.leaveIn -= dt;
         if (v.leaveIn <= 0) { delete v.leaveIn; v.state = 'out'; spotsHeld.delete(v.spot.key); v.path = [{ ...v.spot.aisle }, ...[...v.spot.via].reverse()]; v.pi = 0; }
       }
-      if (v.state === 'in') { if (follow(v, v.pi >= v.path.length - 1 ? 40 : 150, dt)) { v.state = 'parked'; v.ang = v.spot.ang; } }
+      if (v.state === 'in') { if (follow(v, v.pi >= v.path.length - 1 ? 40 : 150, dt)) { v.state = 'parked'; v.ang = v.spot.ang; if (warp <= 2 && onScreen(v.x, v.y)) Sound.door(onScreenX(v.x), zoomVol(), Math.random() < 0.4); } }
       else if (v.state === 'out') { if (follow(v, v.pi <= 1 ? 35 : 150, dt)) v.gone = true; }
     }
     vehicles = vehicles.filter(v => !v.gone);
@@ -3045,7 +3070,7 @@ label.auto input { accent-color: var(--turf); }
       const lost = Math.floor(rnd(1, 3) + (S.wx === 'windy' ? 1 : 0));
       S.owned -= lost; S.lost += lost; S.stock -= 50; v.keep = 50 - lost;
       const mp = machinePos(m);
-      walk(v, [{ x: mp.x, y: TEE_Y + 17 }], () => { v.state = 'filling'; v.t = 0; v.dur = fillTime() * rnd(0.9, 1.1); v.machine = m; });
+      walk(v, [{ x: mp.x, y: TEE_Y + 17 }], () => { v.state = 'filling'; v.t = 0; v.dur = fillTime() * rnd(0.9, 1.1); v.machine = m; if (warp <= 2 && onScreen(v.x, v.y)) Sound.balls(onScreenX(v.x), zoomVol()); });
     }
   }
   function bucketDone(v) {
@@ -3126,6 +3151,7 @@ label.auto input { accent-color: var(--turf); }
     }
   }
   function finishCheckin(v) {
+    if (warp <= 2 && onScreen(v.x, v.y)) Sound.desk(onScreenX(v.x), zoomVol());
     deskIn = deskIn.filter(u => u !== v); v.deskSlot = null;
     if (v.type === 'member' || v.eventPlayer) emote(v, 2, null, ['Morning! Member card.', 'Just me today, thanks.'], 0.15);
     else {
@@ -3877,20 +3903,48 @@ label.auto input { accent-color: var(--turf); }
 
 
   // ---------- Sound: everything is synthesized live with Web Audio, no files ----------
+  // Four buses (music, ambience, effects, UI effects share 'sfx'), each with its own reverb send,
+  // all glued together by a gentle compressor so nothing clips when the park gets busy.
   const Sound = (() => {
-    let ac = null, master, amb, sfx, noise, windF, windG, rainG, humG, humF, whineG;
-    let mv = 0.9, av = 0.8, sv = 0.9;
-    let on = true, lastStrike = 0, lastUi = 0, birdT = 2, cricketT = 0, ready = false, primed = false, keepAlive = null;
-    const SILENT = 'data:audio/wav;base64,UklGRmQGAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YUAGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
+    let ac = null, master, comp, amb, sfx, mus, musDuck, noise, ambVerb, sfxVerb, musVerb;
+    let windF, windG, rainG, trafficG;
+    const loops = {};            // positional loops: carts, cars, mowers, fountains, crowd
+    let mv = 0.9, av = 0.8, sv = 0.9, muv = 0.6;
+    let on = true, lastStrike = 0, lastUi = 0, birdT = 2, nightT = 3, cricketT = 0, ready = false, primed = false, keepAlive = null;
+    const last = {};             // rate limits for one-shot effects
+    const SILENT = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=';
     try { on = localStorage.getItem('fairway-sound') !== 'off'; } catch {}
+    const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
+    const clampPan = p => Math.max(-1, Math.min(1, p || 0));
+    const ok = (k, gap) => { const t = ac.currentTime; if (last[k] && t - last[k] < gap) return false; last[k] = t; return true; };
 
+    // a synthetic room: decaying stereo noise makes a convincing reverb tail
+    function impulse(secs, decay, bright) {
+      const n = Math.floor(ac.sampleRate * secs), b = ac.createBuffer(2, n, ac.sampleRate);
+      for (let c = 0; c < 2; c++) {
+        const d = b.getChannelData(c); let lp = 0;
+        for (let i = 0; i < n; i++) { const w = Math.random() * 2 - 1; lp += (w - lp) * bright; d[i] = lp * Math.pow(1 - i / n, decay); }
+      }
+      return b;
+    }
+    function verbInto(bus, secs, decay, bright, level) {
+      const c = ac.createConvolver(); c.buffer = impulse(secs, decay, bright);
+      const g = ac.createGain(); g.gain.value = level; c.connect(g).connect(bus);
+      return c;
+    }
     function start() {
       if (ac) { if (ac.state === 'suspended' && on) ac.resume(); return; }
       const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
       ac = new AC();
-      master = ac.createGain(); master.gain.value = on ? mv : 0; master.connect(ac.destination);
+      comp = ac.createDynamicsCompressor(); comp.threshold.value = -16; comp.knee.value = 12; comp.ratio.value = 3; comp.attack.value = 0.01; comp.release.value = 0.25;
+      comp.connect(ac.destination);
+      master = ac.createGain(); master.gain.value = on ? mv : 0; master.connect(comp);
       amb = ac.createGain(); amb.gain.value = av; amb.connect(master);
       sfx = ac.createGain(); sfx.gain.value = sv; sfx.connect(master);
+      mus = ac.createGain(); mus.gain.value = muv; musDuck = ac.createGain(); musDuck.gain.value = 1; musDuck.connect(mus).connect(master);
+      ambVerb = verbInto(amb, 2.4, 3, 0.35, 0.5);
+      sfxVerb = verbInto(sfx, 1.4, 4, 0.5, 0.35);
+      musVerb = verbInto(musDuck, 2.8, 2.6, 0.3, 0.42);
       // two seconds of white noise, reused by wind, rain and every burst
       noise = ac.createBuffer(1, ac.sampleRate * 2, ac.sampleRate);
       const d = noise.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
@@ -3901,56 +3955,419 @@ label.auto input { accent-color: var(--turf); }
       const rn = loopNoise(); const rf = ac.createBiquadFilter(); rf.type = 'highpass'; rf.frequency.value = 1800;
       const rp = ac.createBiquadFilter(); rp.type = 'peaking'; rp.frequency.value = 5000; rp.gain.value = 6;
       rainG = ac.createGain(); rainG.gain.value = 0; rn.connect(rf).connect(rp).connect(rainG).connect(amb);
-      // cart hum: low motor drone plus an electric whine
-      const m1 = ac.createOscillator(); m1.type = 'sawtooth'; m1.frequency.value = 58;
-      const m2 = ac.createOscillator(); m2.type = 'square'; m2.frequency.value = 116.5;
-      humF = ac.createBiquadFilter(); humF.type = 'lowpass'; humF.frequency.value = 260;
-      humG = ac.createGain(); humG.gain.value = 0;
-      m1.connect(humF); m2.connect(humF); humF.connect(humG).connect(sfx);
-      const wh = ac.createOscillator(); wh.type = 'sine'; wh.frequency.value = 470;
-      whineG = ac.createGain(); whineG.gain.value = 0; wh.connect(whineG).connect(sfx);
-      m1.start(); m2.start(); wh.start();
+      // the far-off main road: a low rumble that never quite stops
+      const tn = loopNoise(); const tf = ac.createBiquadFilter(); tf.type = 'lowpass'; tf.frequency.value = 160;
+      trafficG = ac.createGain(); trafficG.gain.value = 0; tn.connect(tf).connect(trafficG).connect(amb);
+      buildLoops();
       ready = true;
     }
     function loopNoise() { const s = ac.createBufferSource(); s.buffer = noise; s.loop = true; s.loopStart = Math.random(); s.start(0, Math.random() * 1.5); return s; }
-    function burst(t, dur, type, freq, q, gain, dest, pan = 0) {
+    function osc(type, f) { const o = ac.createOscillator(); o.type = type; o.frequency.value = f; o.start(); return o; }
+    function filt(type, f, q = 0.7) { const b = ac.createBiquadFilter(); b.type = type; b.frequency.value = f; b.Q.value = q; return b; }
+    function panner() { if (ac.createStereoPanner) return ac.createStereoPanner(); const g = ac.createGain(); g.pan = { setTargetAtTime() {} }; return g; }
+
+    // continuous sounds that follow things on screen: a gain and a pan the game steers every frame
+    function buildLoops() {
+      const mk = (bus, build) => { const g = ac.createGain(); g.gain.value = 0; const p = panner(); g.connect(p).connect(bus); const x = { g, p, mod: build(g) || {} }; return x; };
+      // golf carts: electric motor drone and whine, plus tyres on the path
+      loops.cart = mk(sfx, g => {
+        const f = filt('lowpass', 260); osc('sawtooth', 58).connect(f); osc('square', 116.5).connect(f); f.connect(g);
+        const wg = ac.createGain(); wg.gain.value = 0.22; const wh = osc('sine', 470); wh.connect(wg).connect(g);
+        const tg = ac.createGain(); tg.gain.value = 0.5; loopNoise().connect(filt('bandpass', 700, 0.8)).connect(tg).connect(g);
+        return { f, wh };
+      });
+      // cars: petrol engines and tyre roar
+      loops.car = mk(sfx, g => {
+        const f = filt('lowpass', 220); const e1 = osc('sawtooth', 42); e1.connect(f); osc('square', 84.5).connect(f); f.connect(g);
+        const tg = ac.createGain(); tg.gain.value = 0.5; loopNoise().connect(filt('bandpass', 650, 0.8)).connect(tg).connect(g);
+        return { e1 };
+      });
+      // greenkeepers' mowers: a buzzy two-stroke and the hiss of cut grass
+      loops.mower = mk(sfx, g => {
+        const f = filt('lowpass', 900, 1.4); const e = osc('sawtooth', 54); e.connect(f);
+        const am = ac.createGain(); am.gain.value = 0.6; const lfo = osc('square', 27); const lg = ac.createGain(); lg.gain.value = 0.35; lfo.connect(lg).connect(am.gain);
+        f.connect(am).connect(g);
+        const ng = ac.createGain(); ng.gain.value = 0.35; loopNoise().connect(filt('bandpass', 2600, 0.9)).connect(ng).connect(g);
+        return { e };
+      });
+      // fountains: bright splashing water that flutters
+      loops.fountain = mk(amb, g => { const fl = ac.createGain(); fl.gain.value = 1; loopNoise().connect(filt('highpass', 900)).connect(filt('lowpass', 6500)).connect(fl).connect(g); return { fl }; });
+      // chatter around the clubhouse: two formant bands of noise with a syllable-rate wobble
+      loops.crowd = mk(amb, g => {
+        const a = ac.createGain(), b = ac.createGain();
+        loopNoise().connect(filt('bandpass', 480, 1.6)).connect(a).connect(g);
+        loopNoise().connect(filt('bandpass', 1150, 2.4)).connect(b).connect(g);
+        b.gain.value = 0.6; return { a, b };
+      });
+    }
+    function steer(name, v, pan, t) {
+      const L = loops[name]; if (!L) return;
+      L.g.gain.setTargetAtTime(v, t, 0.18); L.p.pan.setTargetAtTime(clampPan(pan), t, 0.2);
+    }
+
+    function burst(t, dur, type, freq, q, gain, dest, pan = 0, verb = 0) {
       const s = ac.createBufferSource(); s.buffer = noise;
       const f = ac.createBiquadFilter(); f.type = type; f.frequency.value = freq; f.Q.value = q;
       const g = ac.createGain(); g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-      s.connect(f).connect(g); route(g, dest, pan);
+      s.connect(f).connect(g); route(g, dest, pan, verb);
       s.start(t, Math.random() * 1.5, dur + 0.05);
     }
-    function tone(t, type, f0, f1, dur, gain, dest, pan = 0, attack = 0.004) {
+    function tone(t, type, f0, f1, dur, gain, dest, pan = 0, attack = 0.004, verb = 0) {
       const o = ac.createOscillator(); o.type = type;
       o.frequency.setValueAtTime(f0, t); if (f1 !== f0) o.frequency.exponentialRampToValueAtTime(f1, t + dur);
       const g = ac.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(gain, t + attack); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-      o.connect(g); route(g, dest, pan);
+      o.connect(g); route(g, dest, pan, verb);
       o.start(t); o.stop(t + dur + 0.05);
+      return o;
     }
-    function route(node, dest, pan) {
-      if (pan && ac.createStereoPanner) { const p = ac.createStereoPanner(); p.pan.value = Math.max(-1, Math.min(1, pan)); node.connect(p).connect(dest); }
-      else node.connect(dest);
+    function route(node, dest, pan, verb = 0) {
+      let out = node;
+      if (pan && ac.createStereoPanner) { const p = ac.createStereoPanner(); p.pan.value = clampPan(pan); node.connect(p); out = p; }
+      out.connect(dest);
+      if (verb > 0) { const s = ac.createGain(); s.gain.value = verb; out.connect(s).connect(dest === amb ? ambVerb : dest === sfx ? sfxVerb : musVerb); }
     }
 
+    // ================= wildlife =================
     // a songbird call: a few quick whistled sweeps
-    function bird() {
-      const t = ac.currentTime + 0.02, pan = rnd(-0.8, 0.8), base = rnd(2400, 4200), notes = 2 + Math.floor(Math.random() * 4);
-      let at = t;
-      const style = Math.random();
+    function bird(pan = rnd(-0.8, 0.8), hi = 1) {
+      const t = ac.currentTime + 0.02, base = rnd(2400, 4200) * hi, notes = 2 + Math.floor(Math.random() * 4);
+      let at = t; const style = Math.random();
       for (let k = 0; k < notes; k++) {
         const f0 = base * rnd(0.85, 1.15), f1 = style < 0.5 ? f0 * rnd(1.2, 1.5) : f0 * rnd(0.6, 0.8), d = rnd(0.05, 0.12);
-        tone(at, 'sine', f0, f1, d, 0.045, amb, pan, 0.01);
+        tone(at, 'sine', f0, f1, d, 0.04, amb, pan, 0.01, 0.25);
         at += d + rnd(0.03, 0.09);
       }
+    }
+    // a blackbird: a slow, fluty phrase that ends in a little twitter
+    function blackbird() {
+      const pan = rnd(-0.8, 0.8); let at = ac.currentTime + 0.02;
+      const n = 3 + Math.floor(Math.random() * 4);
+      for (let k = 0; k < n; k++) {
+        const f0 = rnd(1500, 2700), f1 = f0 * rnd(0.8, 1.25), d = rnd(0.12, 0.28);
+        tone(at, 'sine', f0, f1, d, 0.035, amb, pan, 0.03, 0.4);
+        tone(at, 'sine', f0 * 2, f1 * 2, d * 0.6, 0.005, amb, pan, 0.03);
+        at += d + rnd(0.02, 0.1);
+      }
+      for (let k = 0; k < 3 + Math.floor(Math.random() * 4); k++) { const f = rnd(5000, 7000); tone(at, 'sine', f, f * 0.8, 0.03, 0.018, amb, pan, 0.003, 0.3); at += 0.045; }
+    }
+    // a wood pigeon, far off: coo-COO-coo, coo-coo
+    function pigeon() {
+      const pan = rnd(-0.9, 0.9), t = ac.currentTime + 0.02, f = rnd(400, 470);
+      [[0, 0.22, 0.6], [0.32, 0.42, 1], [0.86, 0.2, 0.6], [1.32, 0.2, 0.7], [1.6, 0.26, 0.6]].forEach(([d, l, a]) => {
+        tone(t + d, 'sine', f * 1.04, f * 0.94, l, 0.03 * a, amb, pan, 0.05, 0.5);
+        tone(t + d, 'sine', f * 2.08, f * 1.88, l, 0.004 * a, amb, pan, 0.05);
+      });
+    }
+    // a cuckoo: spring only
+    function cuckoo() {
+      const pan = rnd(-0.9, 0.9), t = ac.currentTime + 0.02, n = 2 + Math.floor(Math.random() * 3);
+      for (let k = 0; k < n; k++) { tone(t + k * 0.95, 'sine', 770, 750, 0.24, 0.03, amb, pan, 0.03, 0.6); tone(t + k * 0.95 + 0.3, 'sine', 625, 600, 0.36, 0.028, amb, pan, 0.03, 0.6); }
+    }
+    // a crow, two or three rough caws
+    function crow() {
+      const pan = rnd(-0.9, 0.9), t = ac.currentTime + 0.02, n = 2 + Math.floor(Math.random() * 2);
+      for (let k = 0; k < n; k++) {
+        const at = t + k * rnd(0.35, 0.5), o = ac.createOscillator(); o.type = 'sawtooth';
+        o.frequency.setValueAtTime(rnd(620, 720), at); o.frequency.exponentialRampToValueAtTime(rnd(480, 540), at + 0.3);
+        const f = filt('bandpass', 1300, 2.5), g = ac.createGain();
+        g.gain.setValueAtTime(0.0001, at); g.gain.linearRampToValueAtTime(0.03, at + 0.03); g.gain.exponentialRampToValueAtTime(0.0001, at + 0.32);
+        o.connect(f).connect(g); route(g, amb, pan, 0.4); o.start(at); o.stop(at + 0.36);
+        burst(at, 0.25, 'bandpass', 1800, 1.5, 0.012, amb, pan);
+      }
+    }
+    // a woodpecker drumming on a dead branch
+    function woodpecker() {
+      const pan = rnd(-0.9, 0.9), t = ac.currentTime + 0.02, n = 14 + Math.floor(Math.random() * 8), f = rnd(900, 1300);
+      for (let k = 0; k < n; k++) burst(t + k * 0.052, 0.018, 'bandpass', f, 6, 0.09 * (1 - k / n * 0.6), amb, pan, 0.6);
+    }
+    // ducks on the lake
+    function quack(pan) {
+      const t = ac.currentTime + 0.02, n = 2 + Math.floor(Math.random() * 3);
+      for (let k = 0; k < n; k++) {
+        const at = t + k * rnd(0.2, 0.32), o = ac.createOscillator(); o.type = 'sawtooth';
+        o.frequency.setValueAtTime(rnd(250, 300), at); o.frequency.linearRampToValueAtTime(rnd(200, 230), at + 0.16);
+        const f1 = filt('bandpass', 1100, 4), f2 = filt('bandpass', 2400, 5), g = ac.createGain();
+        g.gain.setValueAtTime(0.0001, at); g.gain.linearRampToValueAtTime(0.05, at + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, at + 0.18);
+        o.connect(f1).connect(g); o.connect(f2).connect(g); route(g, amb, pan, 0.3); o.start(at); o.stop(at + 0.2);
+      }
+    }
+    // a tawny owl at night: hoo… hu-hoooo
+    function owl() {
+      const pan = rnd(-0.9, 0.9), t = ac.currentTime + 0.02, f = rnd(390, 430);
+      const hoot = (at, l, a, wob) => {
+        const o = ac.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(f * 1.05, at); o.frequency.linearRampToValueAtTime(f, at + 0.08);
+        if (wob) { const l2 = osc('sine', 9); const lg = ac.createGain(); lg.gain.value = f * 0.03; l2.connect(lg).connect(o.frequency); l2.stop(at + l + 0.1); }
+        const g = ac.createGain(); g.gain.setValueAtTime(0.0001, at); g.gain.linearRampToValueAtTime(0.04 * a, at + 0.06); g.gain.setValueAtTime(0.04 * a, at + l - 0.15); g.gain.exponentialRampToValueAtTime(0.0001, at + l);
+        o.connect(g); route(g, amb, pan, 0.8); o.start(at); o.stop(at + l + 0.05);
+      };
+      hoot(t, 0.55, 1, false); hoot(t + 1.5, 0.16, 0.7, false); hoot(t + 1.75, 1.1, 0.9, true);
     }
     // a cricket chirp: three fast pulses
     function cricket() {
       const t = ac.currentTime + 0.02, pan = rnd(-0.9, 0.9), f = rnd(4200, 4700);
       for (let k = 0; k < 3; k++) tone(t + k * 0.045, 'sine', f, f, 0.03, 0.012, amb, pan, 0.003);
     }
+    // frogs by the water on warm nights
+    function frog(pan) {
+      const t = ac.currentTime + 0.02, n = 2 + Math.floor(Math.random() * 4), f = rnd(140, 220);
+      for (let k = 0; k < n; k++) {
+        const at = t + k * rnd(0.3, 0.45), o = ac.createOscillator(); o.type = 'square'; o.frequency.value = f;
+        const am = ac.createGain(); am.gain.value = 0; const lfo = ac.createOscillator(); lfo.type = 'square'; lfo.frequency.value = rnd(28, 40);
+        const lg = ac.createGain(); lg.gain.value = 0.5; lfo.connect(lg).connect(am.gain);
+        const g = ac.createGain(); g.gain.setValueAtTime(0.0001, at); g.gain.linearRampToValueAtTime(0.03, at + 0.03); g.gain.exponentialRampToValueAtTime(0.0001, at + 0.22);
+        o.connect(filt('bandpass', 750, 3)).connect(am).connect(g); route(g, amb, pan, 0.4);
+        o.start(at); lfo.start(at); o.stop(at + 0.25); lfo.stop(at + 0.25);
+      }
+    }
+
+    // ================= bells =================
+    // a church-style bell: inharmonic partials (hum, prime, minor third, fifth, nominal…) that fade at different rates
+    const BELL = [[0.5, 0.5, 1.6], [1, 0.6, 1], [1.183, 0.38, 0.8], [1.506, 0.16, 0.6], [2, 0.42, 0.55], [2.514, 0.12, 0.35], [2.662, 0.14, 0.3], [3.011, 0.08, 0.25], [4.166, 0.06, 0.15]];
+    function bell(t, f, gain, pan, decay = 3) {
+      for (const [r, a, d] of BELL) tone(t, 'sine', f * r, f * r, decay * d, gain * a, sfx, pan, 0.002, 0.7);
+      burst(t, 0.03, 'bandpass', f * 3, 3, gain * 0.5, sfx, pan, 0.3);
+    }
+
+    // ================= music =================
+    // A small band that plays original lounge tunes: chords and a melody are generated from each
+    // track's chart with a fixed seed, so every tune has its own melody that comes back each time.
+    const QUAL = {
+      maj7: [0, 4, 7, 11], maj9: [0, 4, 7, 11, 14], '6': [0, 4, 7, 9], '69': [0, 4, 9, 14], m7: [0, 3, 7, 10], m9: [0, 3, 7, 10, 14], m6: [0, 3, 7, 9],
+      '7': [0, 4, 7, 10], '9': [0, 4, 7, 10, 14], '13': [0, 4, 10, 14, 21], '7b9': [0, 4, 7, 10, 13], m7b5: [0, 3, 6, 10], dim7: [0, 3, 6, 9], sus: [0, 5, 7, 10, 14],
+    };
+    const SCALE = {
+      maj7: [0, 2, 4, 7, 9, 11], maj9: [0, 2, 4, 7, 9, 11], '6': [0, 2, 4, 7, 9], '69': [0, 2, 4, 7, 9], m7: [0, 2, 3, 5, 7, 9, 10], m9: [0, 2, 3, 5, 7, 9, 10], m6: [0, 2, 3, 5, 7, 9],
+      '7': [0, 2, 4, 7, 9, 10], '9': [0, 2, 4, 7, 9, 10], '13': [0, 2, 4, 7, 9, 10], '7b9': [0, 1, 4, 7, 8, 10], m7b5: [0, 3, 5, 6, 8, 10], dim7: [0, 3, 6, 9], sus: [0, 2, 5, 7, 9, 10],
+    };
+    const NOTE = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+    function chord(sym) {
+      const m = /^([A-G])([b#]?)(.*)$/.exec(sym), q = m[3] || 'maj7';
+      return { root: (NOTE[m[1]] + (m[2] === 'b' ? -1 : m[2] === '#' ? 1 : 0) + 12) % 12, iv: QUAL[q] || QUAL.maj7, sc: SCALE[q] || SCALE.maj7 };
+    }
+    const TRACKS = [
+      { id: 'theme', name: 'Fairway Tycoon', mood: 'title', style: 'bossa', bpm: 100, lead: ['vibes', 'flute'], seed: 11,
+        A: ['Cmaj9', 'A7b9', 'Dm9', 'G13', 'Em7', 'A7', 'Dm9', 'G13'], B: ['Fmaj7', 'Fm6', 'Em7', 'A7b9', 'Dm9', 'G13', 'C69', 'G7'], form: 'AABA' },
+      { id: 'firsttee', name: 'First Tee Bossa', mood: 'day', style: 'bossa', bpm: 96, lead: ['flute', 'vibes'], seed: 23,
+        A: ['Fmaj7', 'Fmaj7', 'Gm7', 'C7', 'Am7', 'D7b9', 'Gm7', 'C7'], B: ['Bbmaj7', 'Bbm6', 'Am7', 'D7', 'Gm7', 'Csus', 'Fmaj9', 'C7'], form: 'AABA' },
+      { id: 'dogleg', name: 'Dogleg Swing', mood: 'day', style: 'swing', bpm: 132, lead: ['horn', 'vibes'], seed: 37,
+        A: [['Bbmaj7', 'G7'], ['Cm7', 'F7'], ['Dm7', 'G7'], ['Cm7', 'F7'], ['Bbmaj7', 'Bb7'], ['Ebmaj7', 'Ebm6'], ['Dm7', 'G7'], ['Cm7', 'F7']],
+        B: ['D7', 'D7', 'G7', 'G7', 'C7', 'C7', 'F7', 'F7'], form: 'AABA' },
+      { id: 'fourball', name: 'Sunday Fourball Waltz', mood: 'day', style: 'waltz', bpm: 138, lead: ['flute', 'vibes'], seed: 41,
+        A: ['Gmaj7', 'Em7', 'Am7', 'D7', 'Bm7', 'E7b9', 'Am7', 'D9'], B: ['Cmaj7', 'Cm6', 'Bm7', 'E7b9', 'Am7', 'Dsus', 'Gmaj9', 'D7'], form: 'AABA' },
+      { id: 'lakeside', name: 'Lakeside Lounge', mood: 'rain', style: 'bossa', bpm: 84, lead: ['vibes', 'flute'], seed: 53,
+        A: ['Dm9', 'Dm9', 'Em7b5', 'A7b9', 'Dm9', 'Gm9', 'Bbmaj7', 'A7b9'], B: ['Gm9', 'C9', 'Fmaj7', 'Bbmaj7', 'Em7b5', 'A7b9', 'Dm9', 'A7b9'], form: 'AABA' },
+      { id: 'backnine', name: 'Back Nine Ballad', mood: 'evening', style: 'ballad', bpm: 64, lead: ['vibes', 'horn'], seed: 67,
+        A: ['Ebmaj9', 'Cm9', 'Fm9', 'Bb13', 'Gm7', 'C7b9', 'Fm9', 'Bb13'], B: ['Abmaj7', 'Abm6', 'Gm7', 'C7b9', 'Fm9', 'Bbsus', 'Eb69', 'Bb7'], form: 'AABA' },
+      { id: 'nightrange', name: 'Floodlights', mood: 'evening', style: 'ballad', bpm: 58, lead: ['vibes', 'vibes'], seed: 79, sparse: true,
+        A: ['Cmaj9', 'Cmaj9', 'Am9', 'Am9', 'Fmaj9', 'Fmaj9', 'Dm9', 'Gsus'], B: ['Ebmaj9', 'Ebmaj9', 'Abmaj9', 'Gsus', 'Cmaj9', 'Am9', 'Dm9', 'Gsus'], form: 'AABA' },
+    ];
+    const rng = seed => () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+    const beatsOf = tr => (tr.style === 'waltz' ? 3 : 4);
+    // the chord at an eighth-note step of a bar
+    function chordAt(tr, sec, bar, step) {
+      const e = tr[sec][bar], spb = beatsOf(tr) * 2;
+      return chord(Array.isArray(e) ? e[step < spb / 2 ? 0 : 1] : e);
+    }
+    // write the melody for one section: two-bar phrases built from a call and an answer rhythm
+    function writeMelody(tr, sec, seed, dens) {
+      const R = rng(seed), spb = beatsOf(tr) * 2, bars = tr[sec].length, out = [];
+      const rhythm = (len, d) => { const on = []; for (let s = 0; s < len - 3; s++) { const strong = s % 2 === 0; if (R() < (strong ? d : d * 0.6)) on.push(s); } if (!on.length) on.push(0); return on; };
+      const call = rhythm(spb * 2, dens), answer = rhythm(spb * 2, dens * 0.8);
+      let pitch = 72 + Math.floor(R() * 5), dir = 1;
+      for (let p = 0; p < bars / 2; p++) {
+        const last = p === bars / 2 - 1;
+        let rh = p % 2 === 0 ? call : answer;
+        if (R() < 0.25) rh = rhythm(spb * 2, dens);
+        if (last) rh = rh.filter(s => s < spb).concat([spb]);
+        rh.forEach((s, k) => {
+          const bar = p * 2 + Math.floor(s / spb), st = s % spb, c = chordAt(tr, sec, bar, st);
+          const nextS = k + 1 < rh.length ? rh[k + 1] : spb * 2, len = last && k === rh.length - 1 ? spb : Math.max(1, Math.min(4, nextS - s));
+          const tones = (st % 2 === 0 || len >= 3 ? c.iv : c.sc).map(i => (c.root + i) % 12);
+          if (R() < 0.3) dir = -dir;
+          if (pitch > 81) dir = -1; if (pitch < 67) dir = 1;
+          // the nearest allowed note a step or two away in the chosen direction
+          let best = pitch, bd = 99;
+          for (let m = 62; m <= 86; m++) {
+            if (!tones.includes(m % 12)) continue;
+            const iv = m - pitch, want = dir * (R() < 0.7 ? 2 : 4), d = Math.abs(iv - want) + (iv === 0 ? 1.5 : 0) + (Math.abs(iv) > 7 ? 6 : 0);
+            if (d < bd) { bd = d; best = m; }
+          }
+          if (last && k === rh.length - 1) { const tgt = [c.root, (c.root + c.iv[1]) % 12]; for (let m = best - 6; m <= best + 6; m++) if (tgt.includes(((m % 12) + 12) % 12) && m >= 62 && m <= 84) { best = m; break; } }
+          pitch = best;
+          out.push({ bar, step: st, len, m: pitch, v: st % 2 === 0 ? 1 : 0.8 });
+        });
+      }
+      return out;
+    }
+    // ---- instruments ----
+    function ep(t, m, dur, vel, pan = 0) {   // electric piano: soft FM tine
+      const f = mtof(m), c = ac.createOscillator(), mo = ac.createOscillator(), mg = ac.createGain(), g = ac.createGain();
+      c.frequency.value = f; mo.frequency.value = f; mg.gain.setValueAtTime(f * 2.2 * vel, t); mg.gain.exponentialRampToValueAtTime(f * 0.15, t + 0.7);
+      mo.connect(mg).connect(c.frequency);
+      const end = t + Math.min(3.2, dur + 1);
+      g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.06 * vel, t + 0.006); g.gain.exponentialRampToValueAtTime(0.025 * vel, t + Math.min(dur, 0.9)); g.gain.exponentialRampToValueAtTime(0.0001, end);
+      c.connect(g); route(g, musDuck, pan, 0.5);
+      c.start(t); mo.start(t); c.stop(end + 0.05); mo.stop(end + 0.05);
+    }
+    function pluck(t, m, dur, vel, pan = 0) {  // nylon-string guitar
+      const f = mtof(m), o1 = ac.createOscillator(), o2 = ac.createOscillator(), lp = filt('lowpass', 2400), g = ac.createGain();
+      o1.type = 'triangle'; o2.type = 'sawtooth'; o1.frequency.value = f; o2.frequency.value = f * 1.002;
+      const og = ac.createGain(); og.gain.value = 0.35; o2.connect(og).connect(lp); o1.connect(lp);
+      lp.frequency.setValueAtTime(2600 * vel + 600, t); lp.frequency.exponentialRampToValueAtTime(500, t + 0.3);
+      const end = t + Math.min(1.6, dur + 0.6);
+      g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.07 * vel, t + 0.003); g.gain.exponentialRampToValueAtTime(0.0001, end);
+      lp.connect(g); route(g, musDuck, pan, 0.35);
+      o1.start(t); o2.start(t); o1.stop(end + 0.05); o2.stop(end + 0.05);
+    }
+    function bass(t, m, dur, vel) {
+      const f = mtof(m), o = ac.createOscillator(), o2 = ac.createOscillator(), lp = filt('lowpass', 520), g = ac.createGain();
+      o.type = 'sine'; o2.type = 'triangle'; o.frequency.value = f; o2.frequency.value = f;
+      const g2 = ac.createGain(); g2.gain.value = 0.45; o2.connect(g2).connect(lp); o.connect(lp);
+      const end = t + dur;
+      g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.085 * vel, t + 0.012); g.gain.exponentialRampToValueAtTime(0.04 * vel, t + dur * 0.6); g.gain.exponentialRampToValueAtTime(0.0001, end + 0.08);
+      lp.connect(g); route(g, musDuck, 0, 0.05);
+      tone(t, 'triangle', f * 2, f * 2, 0.07, 0.035 * vel, musDuck);
+      o.start(t); o2.start(t); o.stop(end + 0.12); o2.stop(end + 0.12);
+    }
+    function vibes(t, m, dur, vel, pan = 0.15) {
+      const f = mtof(m), end = t + Math.min(3, dur + 1.6), g = ac.createGain(), trem = ac.createGain();
+      const lfo = ac.createOscillator(); lfo.frequency.value = 5.2; const lg = ac.createGain(); lg.gain.value = 0.25; lfo.connect(lg).connect(trem.gain); trem.gain.value = 0.75;
+      g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.15 * vel, t + 0.003); g.gain.exponentialRampToValueAtTime(0.0001, end);
+      const o = ac.createOscillator(); o.frequency.value = f; o.connect(g);
+      g.connect(trem); route(trem, musDuck, pan, 0.55);
+      tone(t, 'sine', f * 4, f * 4, 0.35, 0.018 * vel, musDuck, pan, 0.002);
+      tone(t, 'sine', f * 10, f * 10, 0.06, 0.004 * vel, musDuck, pan, 0.001);
+      o.start(t); lfo.start(t); o.stop(end + 0.05); lfo.stop(end + 0.05);
+    }
+    function flute(t, m, dur, vel, pan = -0.15) {
+      const f = mtof(m), o = ac.createOscillator(), o2 = ac.createOscillator(), g = ac.createGain();
+      o.frequency.value = f; o2.type = 'triangle'; o2.frequency.value = f * 2;
+      const vib = ac.createOscillator(), vg = ac.createGain(); vib.frequency.value = 5; vg.gain.setValueAtTime(0, t); vg.gain.linearRampToValueAtTime(f * 0.006, t + Math.min(0.4, dur));
+      vib.connect(vg); vg.connect(o.frequency); vg.connect(o2.frequency);
+      const h = ac.createGain(); h.gain.value = 0.1; o2.connect(h).connect(g); o.connect(g);
+      const end = t + dur + 0.12;
+      g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.11 * vel, t + 0.045); g.gain.setValueAtTime(0.095 * vel, t + Math.max(0.05, dur - 0.04)); g.gain.exponentialRampToValueAtTime(0.0001, end);
+      route(g, musDuck, pan, 0.6);
+      burst(t, 0.08, 'bandpass', f * 2.2, 2, 0.012 * vel, musDuck, pan);
+      o.start(t); o2.start(t); vib.start(t); o.stop(end + 0.05); o2.stop(end + 0.05); vib.stop(end + 0.05);
+    }
+    function horn(t, m, dur, vel, pan = -0.1) {   // a muted trumpet
+      const f = mtof(m), o = ac.createOscillator(), bp = filt('bandpass', 1300, 1.6), lp = filt('lowpass', 2600), g = ac.createGain();
+      o.type = 'sawtooth'; o.frequency.setValueAtTime(f * 0.97, t); o.frequency.exponentialRampToValueAtTime(f, t + 0.05);
+      const end = t + dur + 0.08;
+      g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.09 * vel, t + 0.03); g.gain.setValueAtTime(0.075 * vel, t + Math.max(0.04, dur - 0.04)); g.gain.exponentialRampToValueAtTime(0.0001, end);
+      o.connect(bp).connect(lp).connect(g); route(g, musDuck, pan, 0.5);
+      o.start(t); o.stop(end + 0.05);
+    }
+    const LEAD = { vibes, flute, horn };
+    const kick = (t, v) => tone(t, 'sine', 120, 55, 0.12, 0.06 * v, musDuck);
+    const rim = (t, v) => { burst(t, 0.03, 'bandpass', 1900, 6, 0.14 * v, musDuck, 0.25, 0.3); tone(t, 'triangle', 830, 830, 0.025, 0.04 * v, musDuck, 0.25); };
+    const shaker = (t, v) => burst(t, 0.05, 'highpass', 6500, 0.7, 0.03 * v, musDuck, -0.3);
+    const ride = (t, v) => { burst(t, 0.4, 'bandpass', 8200, 1.1, 0.035 * v, musDuck, 0.35, 0.3); tone(t, 'sine', 5150, 5100, 0.25, 0.004 * v, musDuck, 0.35); };
+    const chick = (t, v) => burst(t, 0.035, 'highpass', 7000, 0.7, 0.03 * v, musDuck, 0.35);
+    function brush(t, v, len = 0.2) {
+      const s = ac.createBufferSource(); s.buffer = noise; const f = filt('bandpass', 2600, 0.8), g = ac.createGain();
+      f.frequency.setValueAtTime(1800, t); f.frequency.linearRampToValueAtTime(3600, t + len);
+      g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.03 * v, t + len * 0.4); g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+      s.connect(f).connect(g).connect(musDuck); s.start(t, Math.random(), len + 0.05);
+    }
+    // ---- the player ----
+    const M = { tr: null, plan: null, bar: 0, t: 0, voicing: [55, 59, 62, 65], fade: 0, gap: 0, want: 'title', pick: 'auto', onTrack: null, played: [] };
+    function planTrack(tr) {
+      // head (the tune), a solo chorus over the same chart, then the tune again
+      const secs = tr.form.split(''), plan = [], heads = {}, solos = {};
+      for (const s of new Set(secs)) { heads[s] = writeMelody(tr, s, tr.seed * 7 + s.charCodeAt(0), tr.sparse ? 0.32 : tr.style === 'ballad' ? 0.42 : 0.5); solos[s] = writeMelody(tr, s, tr.seed * 13 + s.charCodeAt(0) * 3, tr.sparse ? 0.4 : 0.7); }
+      for (let ch = 0; ch < 3; ch++) for (const s of secs) for (let b = 0; b < tr[s].length; b++) plan.push({ sec: s, bar: b, mel: (ch === 1 ? solos : heads)[s].filter(n => n.bar === b), lead: tr.lead[ch === 1 ? 1 : 0], ch });
+      return plan;
+    }
+    function voice(c) {
+      // rootless voicing near the last one, so the chords glide into each other
+      const center = M.voicing.reduce((a, b) => a + b, 0) / M.voicing.length;
+      const pcs = c.iv.filter(i => i !== 0 && !(i === 7 && c.iv.length > 4)).map(i => (c.root + i) % 12);
+      const v = pcs.map(pc => { let m = 48 + pc; while (m < center - 6) m += 12; while (m > center + 6) m -= 12; return m; }).sort((a, b) => a - b);
+      M.voicing = v.length ? v : M.voicing; return v;
+    }
+    const bassRoot = c => 40 + ((c.root - 4 + 12) % 12);   // E2 up to D#3
+    function playBar(t, step8, bar, tr) {
+      const spb = beatsOf(tr) * 2, swing = tr.style === 'swing' ? 0.64 : tr.style === 'waltz' ? 0.6 : tr.style === 'ballad' ? 0.58 : 0.5;
+      const at = s => t + (Math.floor(s / 2) + (s % 2 ? swing : 0)) * step8 * 2;
+      const halves = Array.isArray(tr[bar.sec][bar.bar]);
+      const cAt = s => chordAt(tr, bar.sec, bar.bar, s), c0 = cAt(0), cH = cAt(spb - 1);
+      const vel = bar.ch === 1 ? 0.85 : 1;
+      // comping
+      const comp = (s, len, c, v) => {
+        const vs = voice(c);
+        if (tr.style === 'bossa') vs.forEach((m, k) => pluck(at(s) + k * 0.012, m, len * step8, v * (0.75 + Math.random() * 0.2), -0.25));
+        else vs.forEach(m => ep(at(s) + Math.random() * 0.008, m, len * step8, v * 0.8, 0.2));
+      };
+      if (tr.style === 'bossa') { const pat = bar.bar % 2 === 0 ? [0, 3, 5] : [2, 4, 7]; pat.forEach(s => comp(s, 1.5, cAt(s), 0.9)); }
+      else if (tr.style === 'swing') { const P = [[0, 3], [3, 6], [2, 5], [0, 5], [1, 4]][Math.floor(Math.random() * 5)]; P.forEach(s => comp(s, s % 2 ? 1 : 2, cAt(s), 0.85)); if (halves) comp(4, 2, cH, 0.7); }
+      else if (tr.style === 'waltz') { comp(2, 2, c0, 0.7); comp(4, 2, c0, 0.6); }
+      else { comp(0, spb, c0, 0.8); if (halves) comp(spb / 2, spb / 2, cH, 0.7); else if (!tr.sparse && Math.random() < 0.5) voice(c0).forEach((m, k) => ep(at(4 + k), m + 12, 1, 0.35, 0.3)); }
+      // bass
+      const r = bassRoot, fifth = c => r(c) + 7;
+      if (tr.style === 'bossa') { bass(at(0), r(c0), step8 * 3, 1); bass(at(3), fifth(c0), step8, 0.8); bass(at(4), fifth(cH) - (halves ? 7 : 0), step8 * 3, 0.9); bass(at(7), r(cH), step8, 0.7); }
+      else if (tr.style === 'swing') {
+        const nextRoot = M.nextRoot != null ? M.nextRoot : r(c0);
+        const walk = [r(c0), r(c0) + (Math.random() < 0.5 ? c0.iv[1] : 2), halves ? r(cH) : fifth(c0), nextRoot + (Math.random() < 0.5 ? 1 : -1)];
+        walk.forEach((m, k) => bass(at(k * 2), m, step8 * 1.8, k === 0 ? 1 : 0.85));
+      }
+      else if (tr.style === 'waltz') bass(at(0), bar.bar % 2 ? fifth(c0) - 12 : r(c0), step8 * 2, 1);
+      else { bass(at(0), r(c0), step8 * (halves ? 4 : spb), 0.55); if (halves) bass(at(spb / 2), r(cH), step8 * 4, 0.5); else if (!tr.sparse) bass(at(spb / 2), fifth(c0), step8 * 4, 0.4); }
+      // drums
+      if (tr.style === 'bossa') {
+        for (let s = 0; s < spb; s++) shaker(at(s), s % 2 ? 0.6 : 1);
+        (bar.bar % 2 === 0 ? [0, 3, 6] : [2, 4]).forEach(s => rim(at(s), 0.8));
+        kick(at(0), 0.9); kick(at(3), 0.5); kick(at(4), 0.8);
+      } else if (tr.style === 'swing') {
+        [0, 2, 3, 4, 6, 7].forEach(s => ride(at(s), s % 2 ? 0.6 : 1)); chick(at(2), 1); chick(at(6), 1); brush(at(2), 0.6); brush(at(6), 0.6); kick(at(0), 0.4);
+      } else if (tr.style === 'waltz') { ride(at(0), 0.9); ride(at(2), 0.6); ride(at(4), 0.6); chick(at(2), 0.7); chick(at(4), 0.7); }
+      else if (!tr.sparse) { brush(at(0), 0.6, 0.5); brush(at(4), 0.5, 0.5); }
+      // melody
+      const L = LEAD[bar.lead] || vibes;
+      for (const n of bar.mel) L(at(n.step), n.m, n.len * step8 * (bar.lead === 'vibes' ? 1 : 0.92), n.v * vel);
+    }
+    function poolFor(mood) { return TRACKS.filter(tr => tr.mood === mood || (mood === 'rain' && tr.mood === 'evening' && tr.style === 'ballad' && !tr.sparse)); }
+    function nextTrack() {
+      let tr;
+      if (M.pick !== 'auto') tr = TRACKS.find(x => x.id === M.pick) || TRACKS[0];
+      else {
+        const pool = poolFor(M.want).length ? poolFor(M.want) : poolFor('day');
+        const fresh = pool.filter(x => !M.played.includes(x.id)); const from = fresh.length ? fresh : pool;
+        tr = from[Math.floor(Math.random() * from.length)];
+        M.played = [...M.played.filter(id => id !== tr.id), tr.id].slice(-3);
+      }
+      M.tr = tr; M.plan = planTrack(tr); M.bar = 0; M.nextRoot = null;
+      if (M.onTrack) M.onTrack(tr.name);
+    }
+    function musicTick() {
+      if (muv <= 0.001) { M.tr = null; return; }
+      const now = ac.currentTime;
+      if (M.gap > now) return;
+      if (!M.tr) { nextTrack(); M.t = now + 0.15; musDuck.gain.cancelScheduledValues(now); musDuck.gain.setValueAtTime(1, now); }
+      if (M.t < now - 0.3) M.t = now + 0.05;        // we fell behind (a hidden tab): start again from now
+      const tr = M.tr, beat = 60 / tr.bpm, step8 = beat / 2;
+      // switch tunes when the mood changes (night falls, it starts raining, you leave the title screen)
+      const mismatch = M.pick === 'auto' ? tr.mood !== M.want && !poolFor(M.want).includes(tr) : M.pick !== tr.id;
+      if (mismatch && !M.fade) { M.fade = M.t + beat * beatsOf(tr) * 2; musDuck.gain.setTargetAtTime(0, M.t, 0.6); }
+      if (M.fade && M.t >= M.fade) { M.fade = 0; M.tr = null; M.gap = now + 1.2; return; }
+      while (M.t < now + 0.35) {
+        if (M.bar >= M.plan.length) {
+          // a final chord, then a breather before the next tune
+          const e = tr.A[0], c = chord(Array.isArray(e) ? e[0] : e);
+          voice(c).forEach(m => ep(M.t, m, beat * 4, 0.7)); bass(M.t, bassRoot(c), beat * 4, 0.9);
+          M.gap = M.t + beat * 4 + 3; M.tr = null; return;
+        }
+        const b = M.plan[M.bar], nb = M.plan[M.bar + 1];
+        if (nb) { const c = chordAt(tr, nb.sec, nb.bar, 0); M.nextRoot = bassRoot(c); }
+        playBar(M.t, step8, b, tr);
+        M.t += beat * beatsOf(tr); M.bar++;
+      }
+    }
 
     return {
       get on() { return on; },
+      tracks: TRACKS.map(t => ({ id: t.id, name: t.name })),
       // Must run inside a touch/click. Phones start audio suspended, and iOS also mutes Web Audio
       // with the silent switch unless the page asks for media playback.
       unlock() {
@@ -3972,15 +4389,21 @@ label.auto input { accent-color: var(--turf); }
         if (ac) { master.gain.setTargetAtTime(on ? mv : 0, ac.currentTime, 0.05); if (on && ac.state !== 'running') ac.resume().catch(() => {}); }
         return on;
       },
-      setVolumes(m, a, sx) {
-        mv = m; av = a; sv = sx;
-        if (ac) { master.gain.setTargetAtTime(on ? mv : 0, ac.currentTime, 0.05); amb.gain.setTargetAtTime(av, ac.currentTime, 0.05); sfx.gain.setTargetAtTime(sv, ac.currentTime, 0.05); }
+      setVolumes(m, a, sx, mu = muv) {
+        mv = m; av = a; sv = sx; muv = mu;
+        if (ac) { const t = ac.currentTime; master.gain.setTargetAtTime(on ? mv : 0, t, 0.05); amb.gain.setTargetAtTime(av, t, 0.05); sfx.gain.setTargetAtTime(sv, t, 0.05); mus.gain.setTargetAtTime(muv, t, 0.1); }
       },
-      // a short brass-like fanfare for aces and achievements
+      // what the soundtrack should be doing: a mood ('title', 'day', 'evening', 'rain') and 'auto' or a track id
+      music(want, pick) { M.want = want; if (pick && pick !== M.pick) { M.pick = pick; } },
+      skipTrack() { if (!ready || !M.tr) return; M.fade = M.t; musDuck.gain.setTargetAtTime(0, ac.currentTime, 0.25); },
+      get nowPlaying() { return M.tr ? M.tr.name : ''; },
+      set onTrack(fn) { M.onTrack = fn; },
+      // a short brass-like fanfare for aces and achievements; the band drops back while it plays
       fanfare() {
         if (!ready || !on) return;
         const t = ac.currentTime;
-        [[523.3, 0], [659.3, 0.09], [784, 0.18], [1046.5, 0.3]].forEach(([f, d]) => { tone(t + d, 'sawtooth', f, f, d === 0.3 ? 0.7 : 0.16, 0.05, sfx, 0, 0.01); tone(t + d, 'triangle', f * 2, f * 2, d === 0.3 ? 0.7 : 0.16, 0.04, sfx, 0, 0.01); });
+        musDuck.gain.setTargetAtTime(0.25, t, 0.05); musDuck.gain.setTargetAtTime(1, t + 1.4, 0.6);
+        [[523.3, 0], [659.3, 0.09], [784, 0.18], [1046.5, 0.3]].forEach(([f, d]) => { tone(t + d, 'sawtooth', f, f, d === 0.3 ? 0.7 : 0.16, 0.05, sfx, 0, 0.01, 0.3); tone(t + d, 'triangle', f * 2, f * 2, d === 0.3 ? 0.7 : 0.16, 0.04, sfx, 0, 0.01); });
         burst(t + 0.3, 0.8, 'highpass', 5000, 0.7, 0.05, sfx);
       },
       suspend(yes) {
@@ -3996,6 +4419,98 @@ label.auto input { accent-color: var(--turf); }
         burst(now, 0.035, 'bandpass', rnd(2600, 3400), 1.3, 0.5 * v, sfx, pan);
         tone(now, 'triangle', rnd(1100, 1300), 320, 0.05, 0.22 * v, sfx, pan, 0.001);
         burst(now + 0.004, 0.12, 'lowpass', 900, 0.8, 0.12 * v, sfx, pan);
+      },
+      // a putter: a soft, hollow tock
+      putt(screenX, vol) {
+        if (!ready || !on || !ok('putt', 0.08)) return;
+        const t = ac.currentTime, pan = (screenX / SW) * 1.6 - 0.8;
+        tone(t, 'sine', 1250, 900, 0.05, 0.1 * vol, sfx, pan, 0.001); burst(t, 0.02, 'bandpass', 2500, 3, 0.08 * vol, sfx, pan);
+      },
+      // a splash of sand from a bunker shot
+      sand(screenX, vol) {
+        if (!ready || !on || !ok('sand', 0.1)) return;
+        const t = ac.currentTime, pan = (screenX / SW) * 1.6 - 0.8;
+        burst(t, 0.28, 'bandpass', 1800, 0.6, 0.22 * vol, sfx, pan); burst(t, 0.12, 'lowpass', 400, 0.7, 0.2 * vol, sfx, pan);
+      },
+      // a ball plops into the water
+      splash(screenX, vol) {
+        if (!ready || !on || !ok('splash', 0.1)) return;
+        const t = ac.currentTime, pan = (screenX / SW) * 1.6 - 0.8;
+        tone(t, 'sine', 900, 260, 0.08, 0.14 * vol, sfx, pan, 0.002);
+        burst(t + 0.02, 0.45, 'bandpass', 1500, 0.7, 0.16 * vol, sfx, pan, 0.3);
+        for (let k = 0; k < 4; k++) tone(t + 0.12 + k * rnd(0.04, 0.09), 'sine', rnd(1400, 2600), rnd(700, 1200), 0.04, 0.03 * vol, sfx, pan, 0.002);
+      },
+      // a ball rattles through the branches
+      tree(screenX, vol) {
+        if (!ready || !on || !ok('tree', 0.15)) return;
+        const t = ac.currentTime, pan = (screenX / SW) * 1.6 - 0.8;
+        tone(t, 'triangle', 620, 420, 0.06, 0.12 * vol, sfx, pan, 0.001);
+        burst(t + 0.02, 0.5, 'highpass', 2500, 0.5, 0.06 * vol, sfx, pan);
+        tone(t + 0.22, 'triangle', 540, 380, 0.05, 0.05 * vol, sfx, pan, 0.001);
+      },
+      // golf claps from the group around the green; bigger for better scores
+      applause(screenX, vol, n = 4, cheer = false) {
+        if (!ready || !on || !ok('clap', 0.6)) return;
+        const t = ac.currentTime, pan = (screenX / SW) * 1.6 - 0.8, len = 1 + n * 0.12;
+        for (let p = 0; p < n; p++) { const rate = rnd(0.16, 0.24), f = rnd(900, 2200); for (let s = rnd(0, 0.15); s < len; s += rate * rnd(0.9, 1.1)) burst(t + s, 0.03, 'bandpass', f, 1.4, 0.12 * vol * (1 - s / len * 0.6), sfx, pan + rnd(-0.15, 0.15), 0.2); }
+        if (cheer) {   // a crowd's "whoa!": a swelling vowel of noise
+          for (const [f, q, a] of [[700, 3, 1], [1150, 4, 0.7], [2400, 5, 0.3]]) {
+            const s = ac.createBufferSource(); s.buffer = noise; const bp = filt('bandpass', f, q), g = ac.createGain();
+            bp.frequency.setValueAtTime(f * 0.85, t); bp.frequency.linearRampToValueAtTime(f * 1.1, t + 0.5);
+            g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.5 * a * vol, t + 0.25); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.6);
+            s.connect(bp).connect(g); route(g, sfx, pan, 0.4); s.start(t, Math.random(), 1.7);
+          }
+        }
+      },
+      // a car door shuts, sometimes with a lock chirp
+      door(screenX, vol, lock) {
+        if (!ready || !on || !ok('door', 0.25)) return;
+        const t = ac.currentTime, pan = (screenX / SW) * 1.6 - 0.8;
+        tone(t, 'sine', 120, 60, 0.12, 0.2 * vol, sfx, pan, 0.002); burst(t, 0.08, 'lowpass', 700, 1, 0.18 * vol, sfx, pan);
+        if (lock) { tone(t + 0.5, 'square', 2300, 2300, 0.05, 0.015 * vol, sfx, pan, 0.002); tone(t + 0.62, 'square', 2300, 2300, 0.05, 0.015 * vol, sfx, pan, 0.002); }
+      },
+      // an engine starts
+      ignition(screenX, vol) {
+        if (!ready || !on || !ok('ign', 0.4)) return;
+        const t = ac.currentTime, pan = (screenX / SW) * 1.6 - 0.8;
+        for (let k = 0; k < 5; k++) burst(t + k * 0.075, 0.06, 'lowpass', 500, 1.5, 0.12 * vol, sfx, pan);
+        const o = ac.createOscillator(); o.type = 'sawtooth'; o.frequency.setValueAtTime(30, t + 0.38); o.frequency.exponentialRampToValueAtTime(70, t + 0.6); o.frequency.exponentialRampToValueAtTime(40, t + 1.2);
+        const lp = filt('lowpass', 300), g = ac.createGain(); g.gain.setValueAtTime(0.0001, t + 0.38); g.gain.linearRampToValueAtTime(0.12 * vol, t + 0.45); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.3);
+        o.connect(lp).connect(g); route(g, sfx, pan); o.start(t + 0.38); o.stop(t + 1.35);
+      },
+      // the service bell on the clubhouse desk
+      desk(screenX, vol) {
+        if (!ready || !on || !ok('desk', 1.2)) return;
+        const t = ac.currentTime, pan = (screenX / SW) * 1.6 - 0.8, f = 2093;
+        for (const [r, a, d] of [[1, 1, 1.1], [2.76, 0.35, 0.5], [5.4, 0.15, 0.2]]) tone(t, 'sine', f * r, f * r, d, 0.05 * a * vol, sfx, pan, 0.001, 0.2);
+      },
+      // range balls tumbling out of the machine into a bucket
+      balls(screenX, vol, n = 18) {
+        if (!ready || !on || !ok('balls', 0.5)) return;
+        const t = ac.currentTime, pan = (screenX / SW) * 1.6 - 0.8;
+        for (let k = 0; k < n; k++) { const at = t + k * rnd(0.025, 0.05); burst(at, 0.015, 'bandpass', rnd(2800, 4500), 5, rnd(0.03, 0.07) * vol, sfx, pan); }
+      },
+      // glasses clinking on the terrace
+      clink(screenX, vol) {
+        if (!ready || !on || !ok('clink', 1.5)) return;
+        const t = ac.currentTime, pan = (screenX / SW) * 1.6 - 0.8;
+        for (const f of [3150, 4720]) tone(t, 'sine', f, f, 0.4, 0.018 * vol, amb, pan, 0.001);
+        tone(t + 0.07, 'sine', 3400, 3400, 0.3, 0.012 * vol, amb, pan, 0.001);
+      },
+      // the clubhouse bell: a bright peal in the morning, slow chimes and tolls at closing
+      bell(kind, screenX = SW / 2) {
+        if (!ready || !on || !ok('bell', 5)) return;
+        const t = ac.currentTime + 0.05, pan = Math.max(-0.6, Math.min(0.6, (screenX / SW) * 1.2 - 0.6));
+        if (kind === 'open') {
+          const peal = [76, 74, 71, 67, 71, 74, 76, 79];
+          peal.forEach((m, k) => bell(t + k * 0.28, mtof(m), 0.07, pan, 2.4));
+        } else {
+          // two changes on four bells, then three tolls of a deep bell
+          const ch = [68, 66, 64, 59, 64, 68, 66, 59];
+          ch.forEach((m, k) => bell(t + k * 0.62 + (k >= 4 ? 0.5 : 0), mtof(m), 0.075, pan, 3.2));
+          for (let k = 0; k < 3; k++) bell(t + 6 + k * 1.9, mtof(52), 0.1, pan, 5);
+        }
+        musDuck.gain.setTargetAtTime(0.35, ac.currentTime, 0.2); musDuck.gain.setTargetAtTime(1, ac.currentTime + (kind === 'open' ? 2.5 : 10), 1);
       },
       // cash register: drawer clack, then the bell
       kaching(screenX = SW / 2) {
@@ -4041,7 +4556,7 @@ label.auto input { accent-color: var(--turf); }
       chime() {
         if (!ready || !on) return;
         const t = ac.currentTime;
-        [523.3, 659.3, 784, 1046.5].forEach((f, k) => tone(t + k * 0.065, 'triangle', f, f, 0.35, 0.09, sfx, 0, 0.004));
+        [523.3, 659.3, 784, 1046.5].forEach((f, k) => tone(t + k * 0.065, 'triangle', f, f, 0.35, 0.09, sfx, 0, 0.004, 0.2));
       },
       // ball drops in the cup
       cup(screenX, vol) {
@@ -4050,21 +4565,53 @@ label.auto input { accent-color: var(--turf); }
         tone(t, 'sine', 900, 500, 0.06, 0.12 * vol, sfx, pan, 0.001);
         for (let k = 0; k < 3; k++) burst(t + 0.05 + k * 0.035, 0.02, 'bandpass', 2200 - k * 300, 4, 0.12 * vol / (k + 1), sfx, pan);
       },
-      // called every frame with what the world looks like right now
+      // called every frame with what the world sounds like right now
       update(dt, st) {
         if (!ready || !on) return;
         const t = ac.currentTime;
+        musicTick();
         const wind = st.wind, gust = 0.5 + 0.5 * Math.sin(t * 0.37) * Math.sin(t * 0.13 + 1);
         windG.gain.setTargetAtTime((0.025 + wind * 0.07) * (0.6 + 0.6 * gust), t, 0.4);
         windF.frequency.setTargetAtTime(280 + wind * 380 + gust * 260, t, 0.5);
         rainG.gain.setTargetAtTime(st.rain ? 0.09 : 0, t, 0.8);
-        const hum = Math.min(1, st.carts * 0.35) * st.vol;
-        humG.gain.setTargetAtTime(hum * 0.05, t, 0.15);
-        whineG.gain.setTargetAtTime(hum * 0.012, t, 0.15);
-        humF.frequency.setTargetAtTime(200 + hum * 160, t, 0.2);
+        trafficG.gain.setTargetAtTime(0.006 + 0.014 * (st.road || 0), t, 0.6);
+        const S2 = st.src || {};
+        // carts: louder and a touch higher as more of them move
+        const c = S2.cart || { v: 0, pan: 0 };
+        steer('cart', Math.min(1, c.v) * 0.06, c.pan, t);
+        loops.cart.mod.f.frequency.setTargetAtTime(200 + Math.min(1, c.v) * 180, t, 0.2);
+        const car = S2.car || { v: 0, pan: 0 }; steer('car', Math.min(1, car.v) * 0.028, car.pan, t);
+        loops.car.mod.e1.frequency.setTargetAtTime(38 + Math.min(1, car.v) * 18 + 4 * Math.sin(t * 0.7), t, 0.3);
+        const mw = S2.mower || { v: 0, pan: 0 }; steer('mower', Math.min(1, mw.v) * 0.05, mw.pan, t);
+        loops.mower.mod.e.frequency.setTargetAtTime(52 + 3 * Math.sin(t * 1.3), t, 0.2);
+        const fo = S2.fountain || { v: 0, pan: 0 }; steer('fountain', Math.min(1, fo.v) * 0.05, fo.pan, t);
+        loops.fountain.mod.fl.gain.setTargetAtTime(0.75 + Math.random() * 0.5, t, 0.05);
+        const cr = S2.crowd || { v: 0, pan: 0 }; steer('crowd', Math.min(1, cr.v) * 0.09, cr.pan, t);
+        loops.crowd.mod.a.gain.setTargetAtTime(0.4 + Math.random() * 0.9, t, 0.06);
+        loops.crowd.mod.b.gain.setTargetAtTime(0.2 + Math.random() * 0.7, t, 0.05);
+        if (cr.v > 0.3 && Math.random() < dt * 0.25 * cr.v) this.clink((cr.pan + 0.8) / 1.6 * SW, Math.min(1, cr.v));
         if (st.fast) return;
-        if (st.day > 0.6 && !st.rain) { birdT -= dt; if (birdT <= 0) { bird(); birdT = rnd(1.2, 5) / (st.wind > 1 ? 0.5 : 1); } }
-        if (st.day < 0.3) { cricketT -= dt; if (cricketT <= 0) { cricket(); cricketT = rnd(0.25, 0.9); } }
+        // wildlife, by season and time of day
+        const sea = st.season, h = st.hour, dawn = Math.max(0, 1 - Math.abs(h - st.sunrise - 0.5) / 1.5);
+        if (st.day > 0.4 && !st.rain) {
+          birdT -= dt * (1 + 2.5 * dawn) * (sea === 'winter' ? 0.4 : 1);
+          if (birdT <= 0) {
+            const r = Math.random();
+            if (st.water && r < 0.12) quack(st.water.pan);
+            else if (r < 0.2 && (dawn > 0.2 || h > st.sunset - 2)) blackbird();
+            else if (r < 0.3) pigeon();
+            else if (r < 0.36) crow();
+            else if (r < 0.41 && sea === 'spring' && h < 13) cuckoo();
+            else if (r < 0.44 && sea !== 'winter') woodpecker();
+            else bird(rnd(-0.8, 0.8), sea === 'winter' ? 1.2 : 1);
+            birdT = rnd(1.2, 5) / (st.wind > 1 ? 0.5 : 1);
+          }
+        }
+        if (st.day < 0.3) {
+          if ((sea === 'summer' || (sea === 'spring' && h > 12)) && !st.rain) { cricketT -= dt; if (cricketT <= 0) { cricket(); cricketT = rnd(0.25, 0.9); } }
+          nightT -= dt;
+          if (nightT <= 0) { if (st.water && sea !== 'winter' && Math.random() < 0.6) frog(st.water.pan); else if (Math.random() < 0.5) owl(); nightT = rnd(6, 16); }
+        }
       },
     };
   })();
@@ -4072,6 +4619,46 @@ label.auto input { accent-color: var(--turf); }
   const zoomVol = () => Math.max(0.15, Math.min(1, cam.s / 1.4));
   const onScreenX = wx => (wx - cam.x) * cam.s;
   const onScreen = (wx, wy) => { const x = (wx - cam.x) * cam.s, y = (wy - cam.y) * cam.s; return x > -20 && x < SW + 20 && y > -20 && y < SH + 20; };
+  // ---------- what the park sounds like from where the camera is ----------
+  // every source is weighted by how close it is to the screen (and the zoom) and panned by where it is
+  function earOf(x, y) {
+    const sx = (x - cam.x) * cam.s, sy = (y - cam.y) * cam.s;
+    const dx = sx < 0 ? -sx : sx > SW ? sx - SW : 0, dy = sy < 0 ? -sy : sy > SH ? sy - SH : 0;
+    return { w: Math.exp(-Math.hypot(dx, dy) / 260), pan: Math.max(-1, Math.min(1, (sx / SW) * 1.6 - 0.8)) };
+  }
+  function mixer() { let v = 0, p = 0; return { add(x, y, a = 1) { const e = earOf(x, y), w = e.w * a; v += w; p += e.pan * w; }, get out() { return { v: v * zoomVol(), pan: v ? p / v : 0 }; } }; }
+  const lastPos = new WeakMap();
+  function isMoving(o) { const l = lastPos.get(o), m = !!l && Math.hypot(o.x - l.x, o.y - l.y) > 0.05; lastPos.set(o, { x: o.x, y: o.y }); return m; }
+  let wasDark = null, bellClock = 0;
+  function audioScene() {
+    const cart = mixer(), car = mixer(), mower = mixer(), fountain = mixer(), crowd = mixer();
+    for (const v of visitors) if ((v.riding && v.state === 'golf') || (v.state === 'walk' && v.cart)) { if (isMoving(v)) cart.add(v.x, v.y, 0.45); }
+    for (const m of marshals) if (m.cart && isMoving(m)) cart.add(m.x, m.y, 0.5);
+    forRanges(() => pickers.forEach((p, i) => { if (hasCart(i) && isMoving(p)) cart.add(p.x, p.y, 0.5); }));
+    for (const k of keepers) { if (k.state === 'mow') mower.add(k.x, k.y); else if (k.state === 'go' && isMoving(k)) cart.add(k.x, k.y, 0.5); }
+    for (const v of vehicles) if (v.state !== 'parked') car.add(v.x, v.y, 0.5);
+    const club = S.world ? objs().find(o => o.type === 'club') : null;
+    if (S.world) for (const o of objs()) if (o.type === 'fountain') fountain.add((o.x + 1) * TILE, (o.y + 1) * TILE);
+    if (club) {
+      const cx = (club.x + OBJ.club.w / 2) * TILE, cy = (club.y + OBJ.club.h / 2) * TILE;
+      let n = 0; for (const v of visitors) if (v.state !== 'drive' && v.state !== 'gone' && v.state !== 'golf' && Math.abs(v.x - cx) < 170 && Math.abs(v.y - cy) < 150) n++;
+      crowd.add(cx, cy, Math.min(1.3, n / 10));
+    }
+    const lake = earOf(LAKE.x, LAKE.y), road = earOf(cam.x + SW / cam.s / 2, ROAD_Y);
+    // the clubhouse bell rings when the course opens in the morning and closes at dusk
+    const dk = isDark();
+    if (wasDark !== null && dk !== wasDark && !atTitle && Math.abs(S.clock - bellClock) < 30) Sound.bell(dk ? 'close' : 'open', club ? onScreenX((club.x + OBJ.club.w / 2) * TILE) : SW / 2);
+    wasDark = dk; bellClock = S.clock;
+    // the soundtrack follows the time of day and the weather
+    Sound.music(atTitle ? 'title' : dk || daylight() < 0.5 ? 'evening' : S.wx === 'rain' ? 'rain' : 'day', SETTINGS.track || 'auto');
+    const sun = SUN[monthIdx()];
+    return { wind: W_().wind, rain: S.wx === 'rain', day: daylight(), vol: zoomVol(), fast: warp > 2, season: season(), hour: hour(), sunrise: sun[0], sunset: sun[1],
+             road: road.w * zoomVol(), water: lake.w > 0.3 ? { pan: lake.pan } : null,
+             src: { cart: cart.out, car: car.out, mower: mower.out, fountain: fountain.out, crowd: crowd.out } };
+  }
+  // a small "now playing" note when a new tune starts
+  let npTimer = null;
+  Sound.onTrack = name => { const e = $('nowPlaying'); if (!e) return; e.textContent = '♪ ' + name; e.classList.add('show'); clearTimeout(npTimer); npTimer = setTimeout(() => e.classList.remove('show'), 6000); };
   // audio can only start after the player touches the page
   ['pointerdown', 'touchend', 'click', 'keydown'].forEach(ev => window.addEventListener(ev, () => Sound.unlock(), { capture: true, passive: true }));
 
@@ -5016,7 +5603,7 @@ label.auto input { accent-color: var(--turf); }
 
   // ---------- Settings ----------
   const SET_KEY = 'fairway-settings';
-  const SETTINGS = { uiScale: 1, master: 0.9, ambience: 0.8, sfx: 0.9, camSpeed: 1, edgePan: true, fullscreen: false };
+  const SETTINGS = { uiScale: 1, master: 0.9, music: 0.6, ambience: 0.8, sfx: 0.9, track: 'auto', camSpeed: 1, edgePan: true, fullscreen: false };
   try { Object.assign(SETTINGS, JSON.parse((Platform ? Platform.readSettings() : localStorage.getItem(SET_KEY)) || '{}')); } catch {}
   function saveSettings() {
     const j = JSON.stringify(SETTINGS);
@@ -5025,14 +5612,15 @@ label.auto input { accent-color: var(--turf); }
   }
   function applySettings() {
     document.documentElement.style.setProperty('--ui', SETTINGS.uiScale);
-    Sound.setVolumes(SETTINGS.master, SETTINGS.ambience, SETTINGS.sfx);
+    Sound.setVolumes(SETTINGS.master, SETTINGS.ambience, SETTINGS.sfx, SETTINGS.music);
     measurePads(); clampCam();
   }
   const pct = v => Math.round(v * 100) + '%';
-  const SLIDERS = [['setUi', 'uiScale', pct], ['setMaster', 'master', pct], ['setAmb', 'ambience', pct], ['setSfx', 'sfx', pct], ['setCam', 'camSpeed', v => v.toFixed(1) + '×']];
+  const SLIDERS = [['setUi', 'uiScale', pct], ['setMaster', 'master', pct], ['setMusic', 'music', pct], ['setAmb', 'ambience', pct], ['setSfx', 'sfx', pct], ['setCam', 'camSpeed', v => v.toFixed(1) + '×']];
   function paintSettings() {
     for (const [id, key, f] of SLIDERS) { $(id).value = SETTINGS[key]; $(id + 'V').textContent = f(SETTINGS[key]); }
     $('setEdge').checked = SETTINGS.edgePan;
+    $('setTrack').value = SETTINGS.track || 'auto';
     $('setFs').checked = Platform ? SETTINGS.fullscreen : !!document.fullscreenElement;
     $('quitBtn').hidden = !Platform;
     const info = steamCall('info');
@@ -5041,6 +5629,9 @@ label.auto input { accent-color: var(--turf); }
       : 'Steam is not running. Achievements unlock when you next play with Steam open.';
   }
   for (const [id, key, f] of SLIDERS) $(id).addEventListener('input', () => { SETTINGS[key] = +$(id).value; $(id + 'V').textContent = f(SETTINGS[key]); applySettings(); saveSettings(); });
+  $('setTrack').innerHTML = '<option value="auto">Follow the day</option>' + Sound.tracks.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+  $('setTrack').addEventListener('change', () => { SETTINGS.track = $('setTrack').value; saveSettings(); });
+  $('setSkip').addEventListener('click', e => { e.preventDefault(); Sound.skipTrack(); });
   $('setEdge').addEventListener('change', () => { SETTINGS.edgePan = $('setEdge').checked; saveSettings(); });
   $('setFs').addEventListener('change', () => setFullscreen($('setFs').checked));
   $('quitBtn').addEventListener('click', () => { save(); try { Platform.quit(); } catch {} });
@@ -5169,6 +5760,7 @@ label.auto input { accent-color: var(--turf); }
     if (k === ',' || k === '.') { setSpeed(speedIdx + (k === '.' ? 1 : -1)); Sound.ui('tap'); return; }
     if (k === 'h') { recenter(); Sound.ui('tap'); return; }
     if (k === 'm') { Sound.toggle(); paintSound(); return; }
+    if (k === 'n') { Sound.skipTrack(); return; }
     if (k === 'f' || k === 'f11') { e.preventDefault(); setFullscreen(Platform ? !SETTINGS.fullscreen : !document.fullscreenElement); return; }
     if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'w', 'a', 's', 'd', 'q', 'e', '-', '=', '+', 'shift'].includes(k)) {
       if (k.startsWith('arrow')) e.preventDefault();
@@ -6352,7 +6944,7 @@ label.auto input { accent-color: var(--turf); }
     drawScene(vdt, clockT);
     drawConfetti(vdt);
     drawMoods(vdt);
-    Sound.update(dt, { wind: W_().wind, rain: S.wx === 'rain', day: daylight(), carts: audibleCarts, vol: zoomVol(), fast: warp > 2 });
+    Sound.update(dt, audioScene());
     uiT += dt; saveT += dt;
     refreshTop();
     if (uiT > 0.25) { uiT = 0; if (treesDirty && !(gesture && gesture.type === 'paint')) { treesDirty = false; layout(); } refreshList(); refreshStats(); refreshHud(); paintInspector(); refreshSheetSub(); renderFinance(); if (sheetOpen && tab === 'tee') renderTeeSheet(); measurePads(); clampCam(); }

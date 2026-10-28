@@ -899,7 +899,7 @@ label.auto input { accent-color: var(--turf); }
 <script>
 (() => {
   const $ = id => document.getElementById(id);
-  const GAME_VERSION = '0.37.0';   // bump with every release
+  const GAME_VERSION = '0.38.0';   // bump with every release
   const SAVE_KEY = 'fairway-tycoon-v2';
   // The desktop build (Electron) exposes window.fairwayPlatform; in a browser this is null and saves stay in localStorage.
   const Platform = window.fairwayPlatform || null;
@@ -930,8 +930,8 @@ label.auto input { accent-color: var(--turf); }
     { id: 'bay',     tab: 'range', name: 'Hitting bay, right side', base: 40, g: 1.17, max: 35, desc: () => bays() >= MAX_BAYS ? `The range is at full width with ${MAX_BAYS} bays.` : rangeFits({ bay: L('bay') + 1 }) ? `Widens the range to the right. ${bays()} of ${MAX_BAYS} bays: ${L('bayL')} left of the ball machines, ${3 + L('bay')} right.` : 'No room to the right: buy land or move what is in the way.' },
     { id: 'bayL',    tab: 'range', name: 'Hitting bay, left side', base: 40, g: 1.17, max: 35, desc: () => bays() >= MAX_BAYS ? `The range is at full width with ${MAX_BAYS} bays.` : rangeFits({ bayL: L('bayL') + 1 }) ? 'Widens the range to the left. The ball machines and the door stay where they are.' : 'No room to the left: buy land or move what is in the way.' },
     { id: 'rpark',   tab: 'old', name: 'Range car park', base: 120, g: 1.5, max: 5, desc: () => `+6 parking spaces beside the range. ${rangeSpots()} of ${RANGE_SPOTS.length} built, ${usedSpots('range')} in use.` },
-    { id: 'balls',   tab: 'range', name: 'Premium range balls', base: 120, g: 1.55, max: 25, desc: () => `Golfers value a bucket 25% more. Worth ${fmt(nice(fairBucket()))} to them now.` },
-    { id: 'targets', tab: 'range', name: 'Target greens', base: 600, g: 1.8, max: 15, desc: () => `The range becomes a game: buckets are worth 50% more of the base price to golfers.` },
+    { id: 'balls',   tab: 'range', name: 'Premium range balls', base: 300, g: 1.8, max: 5, desc: () => `Golfers value a bucket 8% more, but premium balls cost more to replace. A bucket is worth ${fmt(nice(fairBucket()))} to them now; 500 balls cost ${fmt(cost(byId.order))}.` },
+    { id: 'targets', tab: 'range', name: 'Target greens', base: 1500, g: 2, max: 3, desc: () => `Flags and greens to aim at: buckets are worth 12% more to golfers. Costs $10 a day each to keep up.` },
     { id: 'order',   tab: 'range', name: 'Order range balls', base: 120, g: 1, max: Infinity, desc: () => `Adds 500 balls to the dispenser. You own ${Math.floor(S.owned).toLocaleString('en-US')}; ${S.lost.toLocaleString('en-US')} lost to the pond and rough so far.` },
     { id: 'disp',    tab: 'range', name: 'Ball dispenser', base: 200, g: 1.5, max: 20, desc: () => `Stores 500 more balls and fills buckets faster. Holds ${ballCap().toLocaleString('en-US')}; a bucket takes ${fillTime().toFixed(1)} s.` },
     { id: 'dmach',   tab: 'range', name: 'Extra ball machine', base: 900, g: 2.4, max: 2, desc: () => `Another machine on the tee line, so more golfers fill buckets at once. You have ${machines()}.${rangeFits({ dmach: L('dmach') + 1 }) ? '' : ' No room: it widens the range to the right.'}` },
@@ -940,18 +940,18 @@ label.auto input { accent-color: var(--turf); }
     { id: 'covered', tab: 'range', name: 'Covered bays', base: 1200, g: 1.9, max: 5, desc: () => `Range golfers keep coming in the rain. Rain demand ${Math.round(rangeRainMult() * 100)}%.` },
     { id: 'lights',  tab: 'range', name: 'Floodlights', base: 1500, g: 1.9, max: 6, desc: () => L('lights') ? `Range open after dark at ${Math.round(nightRange() * 100)}% demand.` : `Keep the range open after dark.` },
     { id: 'slot',    tab: 'course', name: 'Extra tee time', base: 600, g: 1.32, max: 20, desc: () => `+1 group of up to 4 on the course. You have ${slots()}.` },
-    { id: 'green',   tab: 'course', name: 'Greenkeeping kit', base: 400, g: 1.55, max: 25, desc: () => `Golfers value a round 20% more and greenkeepers work 15% faster. Nine holes are worth ${fmt(nice(fairFee9()))} now.` },
+    { id: 'green',   tab: 'course', name: 'Greenkeeping kit', base: 400, g: 1.55, max: 10, desc: () => `Golfers value a round 6% more and greenkeepers work 15% faster. Nine holes are worth ${fmt(nice(fairFee9()))} now.` },
     { id: 'carts',   tab: 'course', name: 'Golf carts', base: 900, g: 1.7, max: 8, desc: () => L('carts') ? `Golfers ride between shots at ${Math.round(RIDE())} instead of walking at ${STROLL}. Faster rounds free up tee times.` : 'Golfers ride between shots instead of walking, so rounds finish sooner.' },
     { id: 'irrig',   tab: 'course', name: 'Irrigation', base: 1500, g: 1.75, max: 8, desc: () => `Waters and drains the course, so summer heat and rain do less damage to the turf.` },
-    { id: 'market',  tab: 'club', name: 'Local advertising', base: 75, g: 1.45, max: 40, desc: () => `+30% golfers arriving. Costs $20 a day per level in adverts.` },
+    { id: 'market',  tab: 'club', name: 'Local advertising', base: 150, g: 1.5, max: 12, desc: () => `More golfers hear about you, with diminishing returns: +${Math.round((marketMult() - 1) * 100)}% now${L('market') < 12 ? `, +${Math.round((marketMult(L('market') + 1) - 1) * 100)}% at the next level` : ''}. Costs $20 a day per level.` },
     { id: 'cpark',   tab: 'old', name: 'Club car park', base: 200, g: 1.45, max: 11, desc: () => `+6 spaces at the clubhouse, then an overflow lot. ${clubSpots()} of ${CLUB_SPOTS.length} built, ${usedSpots('club')} in use.` },
     { id: 'barRoom', tab: 'club', name: 'Bar', base: 1500, g: 1.8, max: 4, desc: () => L('barRoom') ? `${VENUES.bar.cap()} seats. Drinks ${fmt(VENUES.bar.spend())} a visit.${N('bar') ? '' : ' Hire a bartender to open it.'}` : 'Build a bar in the clubhouse. Needs a bartender.' },
     { id: 'resto',   tab: 'club', name: 'Restaurant', base: 4000, g: 1.9, max: 5, desc: () => L('resto') ? `${VENUES.resto.cap()} seats. Meals ${fmt(VENUES.resto.spend())} each.${N('chef') ? '' : ' Hire a chef to open it.'}` : 'A dining room and kitchen. Busy at lunch and dinner. Needs a chef.' },
     { id: 'terrace', tab: 'club', name: 'Terrace', base: 2500, g: 1.8, max: 5, desc: () => L('barRoom') ? (L('terrace') ? `${VENUES.terrace.cap()} seats outside, served by the bar. Popular in the sun, closed in rain and after dark.` : 'Tables and umbrellas overlooking the course. Served by the bar.') : 'Build the bar first; it serves the terrace.' },
     { id: 'locker',  tab: 'club', name: 'Locker rooms', base: 2000, g: 2, max: 3, desc: () => L('locker') ? `Course golfers change first. Green fees +${8 * L('locker')}%, patience at the tee +${15 * L('locker')}%.` : 'Changing rooms for course golfers. Raises green fees and their patience.' },
-    { id: 'shop',    tab: 'club', name: 'Pro shop stock', base: 60, g: 1.4, max: 50, desc: () => `${VENUES.shop.cap()} shoppers at a time spend ${fmt(VENUES.shop.spend())} each, and every golfer buys tees.` },
-    { id: 'food',    tab: 'club', name: 'Halfway house menu', base: 800, g: 1.6, max: 25, desc: () => hasObj('hut') ? `Golfers spend ${fmt(foodCourse())} each per round at your halfway house.` : 'Place a halfway house on the Build tab first.' },
-    { id: 'reno',    tab: 'club', name: 'Clubhouse renovation', base: 25000, g: 3.2, max: 10, desc: () => `Everything earns ×1.5. Now ×${fmtMult(renoMult())}.` },
+    { id: 'shop',    tab: 'club', name: 'Pro shop stock', base: 80, g: 1.4, max: 20, desc: () => `${VENUES.shop.cap()} shoppers at a time spend ${fmt(VENUES.shop.spend())} each, and every golfer buys tees.` },
+    { id: 'food',    tab: 'club', name: 'Halfway house menu', base: 800, g: 1.6, max: 10, desc: () => hasObj('hut') ? `Golfers spend ${fmt(foodCourse())} each per round at your halfway house.` : 'Place a halfway house on the Build tab first.' },
+    { id: 'reno',    tab: 'club', name: 'Clubhouse renovation', base: 25000, g: 2, max: 5, desc: () => `A smarter club: golfers value everything 10% more. Now ×${fmtMult(renoMult())}.` },
   ];
   const STAFF = [
     { id: 'attend', range: true, name: 'Range attendant', base: 200, g: 1.45, sal: 0.22, max: 12, desc: () => `Runs 4 bays each. You can run 3 yourself. Staffed: ${staffedBays()} of ${bays()} bays.` },
@@ -1064,6 +1064,18 @@ label.auto input { accent-color: var(--turf); }
     return best;
   }
   // older parks had one range, with its upgrades and staff kept park-wide: hand them to the first range
+  function clampLevels() {
+    // saves from before the economy rebalance: prices go back to fair value once
+    if ((S.econ || 1) < 2) {
+      S.econ = 2;
+      if (S.prices && S.day > 1) {
+        for (const it of PRICE_ITEMS) { if (it.pct) continue; try { const f = it.k === 'bucket' && rangeObjs()[0] ? withRange(rangeObjs()[0], () => it.fair()) : it.fair(); if (f > 0) S.prices[it.k] = nice(f); } catch {} }
+        setTimeout(() => toast('Economy update', 'Prices reset to fair value', 'Upgrades now give smaller, capped bonuses, so your prices were reset to what golfers think is fair. Fine-tune them in Finances.', '$'), 1500);
+      }
+    }
+    for (const u of UP) if (u.tab && Number.isFinite(u.max) && (S.lvl[u.id] || 0) > u.max) S.lvl[u.id] = u.max;
+    for (const o of rangeObjs()) if (o.r) for (const k of RANGE_UP) { const u = byId[k]; if (u && Number.isFinite(u.max) && (o.r.lvl[k] || 0) > u.max) o.r.lvl[k] = u.max; }
+  }
   function migrateRanges() {
     for (const o of rangeObjs()) o.r ||= newRangeState();
     const first = rangeObjs()[0];
@@ -1106,15 +1118,15 @@ label.auto input { accent-color: var(--turf); }
   const hour = () => (S.clock / DAY_LEN) * 24;
   const daylight = () => { const h = hour(), [rise, set] = SUN[monthIdx()]; if (h >= rise + 1 && h < set - 1) return 1; if (h >= rise - 1 && h < rise + 1) return (h - rise + 1) / 2; if (h >= set - 1 && h < set + 1) return 1 - (h - set + 1) / 2; return 0; };
   const isDark = () => daylight() < 0.35;
-  const incomeMult = () => renoMult() * (1 + 0.15 * S.trophies);
-  const renoMult = () => Math.pow(1.5, L('reno'));
+  const incomeMult = () => renoMult() * (1 + 0.08 * Math.min(5, S.trophies || 0));
+  const renoMult = () => 1 + 0.1 * L('reno');
   const condMult = () => 0.5 + 0.5 * S.cond / 100;
   // what golfers think things are worth; you set the actual prices in Finances
-  const fairBucket = () => 6 * Math.pow(1.25, L('balls')) * (1 + 0.5 * L('targets')) * incomeMult();
+  const fairBucket = () => 6 * (1 + 0.08 * L('balls')) * (1 + 0.12 * L('targets')) * incomeMult();
   const bucketPrice = () => S.prices.bucket;
-  const feeBase = () => 55 * Math.pow(1.2, L('green')) * (1 + 0.08 * L('locker')) * condMult() * incomeMult();
-  const fairFee9 = () => feeBase() * (1 + 0.06 * rating9());
-  const fairFee18 = () => feeBase() * 1.9 * (1 + 0.06 * rating18() / 2);
+  const feeBase = () => 55 * (1 + 0.06 * L('green')) * (1 + 0.08 * L('locker')) * condMult() * incomeMult();
+  const fairFee9 = () => feeBase() * (1 + 0.006 * rating9());
+  const fairFee18 = () => feeBase() * 1.9 * (1 + 0.006 * rating18() / 2);
   const fee9 = () => S.prices.fee9;
   const fee18 = () => S.prices.fee18;
   const dur9 = () => 60 * Math.pow(0.9, L('carts'));
@@ -1381,16 +1393,27 @@ label.auto input { accent-color: var(--turf); }
   const staffedBays = () => Math.min(bays(), 3 + 4 * N('attend'));
   const rangeRainMult = () => Math.min(1, 0.45 + 0.11 * L('covered'));
   const nightRange = () => L('lights') ? Math.min(1, 0.25 + 0.15 * L('lights')) : 0.04;
-  const arrivalBase = () => 0.3 * (1 + 0.3 * L('market')) * modMult('arrive');
+  const marketMult = (l = L('market')) => 1 + 0.9 * (1 - Math.pow(0.82, l));
+  const arrivalBase = () => 0.3 * marketMult() * modMult('arrive');
   const W_ = () => WEATHER[S.wx];
   const openRanges = () => rangeObjs().filter(o => o.r && connected('OBJ:' + o.id) && facOpen('range:' + o.id)).length;
-  const rangeDemand = () => modMult('range') * (rangeOK() ? hcpDemand(false) * (1 - Math.pow(0.85, openRanges())) / 0.15 : 0) * starAppeal() * arrivalBase() * 0.6 * (S.wx === 'rain' ? rangeRainMult() : W_().range) * (isDark() ? nightRange() : 1) * parkAppeal() * seasonDemand() * valueDemand(ratioOf('bucket'));
-  const courseDemand = () => isDark() || isFrost() || !facOpen('course') ? 0 : modMult('course') * seasonDemand() * courseValue() * arrivalBase() * 0.32 * W_().course * (0.4 + 0.6 * S.cond / 100) * (1 + 0.1 * N('starter')) * courseAppeal() * parkAppeal() * starAppeal() * rivalShare() * (eventRunning() ? 0 : 1) * (courseOK() ? Math.pow(Math.min(1, courseHoles() / 9), 0.6) * hcpDemand(true) : 0);
-  const shopSpend = () => 0.5 * L('shop') * incomeMult();
-  const foodCourse = () => objs().some(o => o.type === 'hut' && facOpen('obj:' + o.id)) ? 6 * (1 + L('food')) * incomeMult() * modMult('food') : 0;
+  // a bigger range draws more golfers, with diminishing returns: what counts is how many bays are open (staffed)
+  const openBays = () => { let n = 0; for (const o of rangeObjs()) if (o.r && connected('OBJ:' + o.id) && facOpen('range:' + o.id)) n += withRange(o, () => staffedBays()); return n; };
+  const rangeDraw = () => Math.pow(Math.max(1, openBays()) / 6, 0.65);
+  // word gets round when it's packed: long lines put people off coming at all
+  let crowdT = 0, rangeCrowd = 1, teeCrowd = 1;
+  function updateCrowding(dt) {
+    crowdT -= dt; if (crowdT > 0) return; crowdT = 1;
+    const rs = rangeSum(); rangeCrowd = 1 / (1 + 0.6 * rs.queue / Math.max(1, rs.staffed));
+    teeCrowd = 1 / (1 + 0.35 * teeQueue.length / Math.max(1, slots()));
+  }
+  const rangeDemand = () => modMult('range') * rangeCrowd * (rangeOK() ? hcpDemand(false) * rangeDraw() : 0) * starAppeal() * arrivalBase() * 0.6 * (S.wx === 'rain' ? rangeRainMult() : W_().range) * (isDark() ? nightRange() : 1) * parkAppeal() * seasonDemand() * valueDemand(ratioOf('bucket'));
+  const courseDemand = () => isDark() || isFrost() || !facOpen('course') ? 0 : modMult('course') * teeCrowd * seasonDemand() * courseValue() * arrivalBase() * 0.32 * W_().course * (0.4 + 0.6 * S.cond / 100) * (1 + 0.1 * N('starter')) * courseAppeal() * parkAppeal() * starAppeal() * rivalShare() * (eventRunning() ? 0 : 1) * (courseOK() ? Math.pow(Math.min(1, courseHoles() / 9), 0.6) * hcpDemand(true) : 0);
+  const shopSpend = () => 0.4 * Math.min(10, L('shop')) * incomeMult();
+  const foodCourse = () => objs().some(o => o.type === 'hut' && facOpen('obj:' + o.id)) ? 6 * (1 + 0.25 * L('food')) * incomeMult() * modMult('food') : 0;
   const maxWait = () => 16 * Math.pow(0.7, N('starter'));
   const salaries = () => STAFF.reduce((a, s) => a + s.sal * (RANGE_STAFF.has(s.id) ? rStaff(s.id) : (S.staff[s.id] || 0)), 0);
-  const cost = u => u.id === 'order' ? Math.ceil(u.base * renoMult()) : Math.ceil(u.base * Math.pow(u.g, u.id === 'bay' || u.id === 'bayL' ? bays() - 3 : level(u)));
+  const cost = u => u.id === 'order' ? Math.ceil(u.base * (1 + 0.2 * L('balls'))) : Math.ceil(u.base * Math.pow(u.g, u.id === 'bay' || u.id === 'bayL' ? bays() - 3 : level(u)));
 
   // =====================================================================================
   // Business: calendar and seasons, prices you set, running costs, the books and the bank
@@ -1423,7 +1446,7 @@ label.auto input { accent-color: var(--turf); }
     if (!(S.prices.fee9 > 0)) S.prices.fee9 = nice(fairFee9());
     if (!(S.prices.fee18 > 0)) S.prices.fee18 = nice(fairFee18());
     if (!(S.prices.menu > 0)) S.prices.menu = 1;
-    if (!(S.prices.member > 0)) S.prices.member = nice(fairFee9() * 4);
+    if (!(S.prices.member > 0)) S.prices.member = nice(fairFee9() * 2.5);
     if (!(S.prices.short > 0)) S.prices.short = nice(fairBucket() * 0.8);
     if (!(S.prices.lesson > 0)) S.prices.lesson = nice(40 * incomeMult());
     if (!(S.prices.shortc > 0)) S.prices.shortc = nice(14 * incomeMult());
@@ -1433,7 +1456,7 @@ label.auto input { accent-color: var(--turf); }
     { k: 'bucket', label: 'Bucket of balls', fair: () => fairBucket(), shown: () => true },
     { k: 'fee9', label: '9 holes', fair: () => fairFee9(), shown: () => true },
     { k: 'fee18', label: '18 holes', fair: () => fairFee18(), shown: () => L('back9') > 0 },
-    { k: 'member', label: 'Membership, per month', fair: () => fairFee9() * 4, shown: () => true },
+    { k: 'member', label: 'Membership, per month', fair: () => fairFee9() * 2.5, shown: () => true },
     { k: 'short', label: 'Short game session', fair: () => fairBucket() * 0.8, shown: () => hasObj('short') },
     { k: 'lesson', label: 'Golf lesson', fair: () => 40 * incomeMult(), shown: () => hasObj('academy') },
     { k: 'rental', label: 'Club rental', fair: () => 14 * incomeMult(), shown: () => true },
@@ -1454,7 +1477,7 @@ label.auto input { accent-color: var(--turf); }
   // ---- running costs, per in-game day
   function upkeepItems() {
     const it = [], add = (label, v) => { if (v > 0.5) it.push([label, v]); };
-    { let a = 0, b = 0, c = 0; forRanges(o => { const f = facShare('range:' + o.id); a += f * (3 * bays() + 6 * machines()); b += f * (8 * L('covered') + 14 * L('lights')); c += 6 * Math.min(L('cart'), N('picker')); });
+    { let a = 0, b = 0, c = 0; forRanges(o => { const f = facShare('range:' + o.id); a += f * (3 * bays() + 6 * machines()); b += f * (8 * L('covered') + 14 * L('lights') + 10 * L('targets')); c += 6 * Math.min(L('cart'), N('picker')); });
       add('Range bays and ball machines', a); add('Covered bays and floodlights', b); add('Picker carts', c); }
     let holes = 0; for (let i = 0; i < 18; i++) if (S.design && S.design.holes[i].built) holes += 6 + 2 * (S.holes[i].par - 3);
     if (S.design) for (const f of S.design.feats) holes += FEATS[f.type].upkeep;
@@ -1464,8 +1487,10 @@ label.auto input { accent-color: var(--turf); }
     add('Clubhouse', (hasObj('club') ? 20 : 0) + 25 * L('barRoom') * facShare('venue:bar') + 40 * L('resto') * facShare('venue:resto') + 15 * L('terrace') * facShare('venue:terrace') + 15 * L('locker') * facShare('venue:locker') + 10 * L('food') + 30 * L('reno'));
     add('Car parks, amenities and paths', objs().reduce((a, o) => a + (OBJ[o.type].upkeep || 0) * facShare('obj:' + o.id), 0) + 0.15 * (S.world ? S.world.paths.length : 0));
     add('Advertising', 20 * L('market'));
+    add('Business rates and insurance', RATES * (S.invested || 0));
     return it;
   }
+  const RATES = 0.0015;   // a day, on everything you have built
   const upkeepPerDay = () => upkeepItems().reduce((a, x) => a + x[1], 0);
   const wagesPerDay = () => salaries() * DAY_LEN;
   const LOAN_RATE = 0.0025;   // per day: about 9% a year
@@ -1567,6 +1592,7 @@ label.auto input { accent-color: var(--turf); }
     runCosts(dt);
     strike = false;
     eventsTick();
+    updateCrowding(dt);
 
     // visitors: arrivals, walking, queues, the range and the clubhouse
     tickVisitors(dt);
@@ -3145,7 +3171,7 @@ label.auto input { accent-color: var(--turf); }
   const inLake = (x, y) => Math.hypot((x - LAKE.x) / (LAKE.rx + 6), (y - LAKE.y) / (LAKE.ry + 6)) < 1;
   const ownsTile = (tx, ty) => { const p = parcelAt(tx * TILE + 1, ty * TILE + 1); return !!p && !!S.world && S.world.land.includes(p.id); };
   function rebuildWorld() {
-    migrateRanges();
+    migrateRanges(); clampLevels();
     for (const o of rangeObjs()) o.x = fp(o).x;
     occ = new Int32Array(GW * GH); isPath = new Uint8Array(GW * GH);
     for (let ty = LAND_ROWS; ty < GH; ty++) for (let tx = 0; tx < GW; tx++) occ[tIdx(tx, ty)] = -1;   // the road
@@ -3452,7 +3478,7 @@ label.auto input { accent-color: var(--turf); }
     v.amen = o.id; v.amenType = o.type;
     walkNet(v, v.at, 'OBJ:' + o.id, [], () => {
       if (!objById(o.id)) return nextStop(v);
-      v.state = 'queue'; v.wait = 0; v.patience = 40 * v.temper; v.grumbled = false;
+      v.state = 'queue'; v.wait = 0; v.relief = 0; v.patience = 40 * v.temper; v.grumbled = false;
       (amenQ[o.id] ||= []).push(v);
     });
   }
@@ -3522,16 +3548,16 @@ label.auto input { accent-color: var(--turf); }
   };
   const VENUES = {
     shop:    { room: 'lobby', label: 'Pro shop', seats: [[1146, 1366], [1160, 1366], [1146, 1384], [1160, 1384], [1146, 1402], [1160, 1402]].map(([x, y]) => ({ x, y })),
-               cap: () => Math.min(6, 2 + Math.floor(L('shop') / 4) + N('assist')), open: () => hasObj('club'), dur: () => rnd(6, 10), spend: () => (3 + 1.5 * L('shop')) * (1 + 0.1 * Math.min(5, N('assist'))) * incomeMult() },
+               cap: () => Math.min(6, 2 + Math.floor(L('shop') / 4) + N('assist')), open: () => hasObj('club'), dur: () => rnd(6, 10), spend: () => (4 + 1.0 * L('shop')) * (1 + 0.1 * Math.min(5, N('assist'))) * incomeMult() },
     bar:     { room: 'bar', label: 'Bar', seats: [...[1252, 1262, 1272, 1282, 1292, 1302].map(x => ({ x, y: 1374 })), ...seatsGrid(3, 1, 1257, 1408, 23, 0, 3)],
                cap: () => L('barRoom') ? Math.min(15, 6 + 3 * (L('barRoom') - 1)) : 0, open: () => L('barRoom') > 0 && N('bar') > 0 && hasFood(),
-               dur: () => rnd(18, 26) / (1 + 0.12 * N('bar')), spend: () => 7 * (1 + 0.2 * (L('barRoom') - 1)) * (1 + 0.25 * N('bar')) * incomeMult() },
+               dur: () => rnd(18, 26) / (1 + 0.12 * N('bar')), spend: () => 7 * (1 + 0.2 * (L('barRoom') - 1)) * (1 + 0.15 * Math.min(3, N('bar'))) * incomeMult() },
     resto:   { room: 'resto', label: 'Restaurant', seats: seatsGrid(3, 2, 1050, 1372, 30, 34, 4),
                cap: () => L('resto') ? Math.min(24, 8 + 4 * (L('resto') - 1)) : 0, open: () => L('resto') > 0 && N('chef') > 0 && hasFood(),
-               dur: () => rnd(32, 44) / (1 + 0.1 * N('chef')), spend: () => 16 * (1 + 0.15 * (L('resto') - 1)) * (1 + 0.25 * N('chef')) * incomeMult() },
+               dur: () => rnd(32, 44) / (1 + 0.1 * N('chef')), spend: () => 16 * (1 + 0.15 * (L('resto') - 1)) * (1 + 0.15 * Math.min(3, N('chef'))) * incomeMult() },
     terrace: { room: 'terrace', label: 'Terrace', seats: seatsGrid(6, 1, 1022, 1322, 39, 0, 4),
                cap: () => L('terrace') ? Math.min(24, 8 + 4 * (L('terrace') - 1)) : 0, open: () => L('terrace') > 0 && L('barRoom') > 0 && N('bar') > 0 && hasFood() && S.wx !== 'rain' && !isDark(),
-               dur: () => rnd(24, 32), spend: () => 11 * (1 + 0.15 * (L('terrace') - 1)) * (1 + 0.2 * N('bar')) * (S.wx === 'sunny' ? 1.25 : 1) * incomeMult() },
+               dur: () => rnd(24, 32), spend: () => 11 * (1 + 0.15 * (L('terrace') - 1)) * (1 + 0.12 * Math.min(3, N('bar'))) * (S.wx === 'sunny' ? 1.25 : 1) * incomeMult() },
   };
   // each room also follows its opening hours
   for (const [k, Vn] of Object.entries(VENUES)) { const f = Vn.open; Vn.open = () => f() && facOpen('venue:' + k); }
@@ -3630,7 +3656,7 @@ label.auto input { accent-color: var(--turf); }
   const teeWaitPos = () => { const t = teePos(0); return { x: t.x - 30 + rnd(-10, 10), y: t.y + 22 + rnd(-6, 8) }; };
   function joinQueue(v) {
     const stop = v.plan[v.step];
-    v.state = 'queue'; v.wait = 0; v.patience = PATIENCE[stop]() * v.temper * (nearObj('bench', v.x, v.y, 90) ? 1.2 : 1); v.grumbled = false;
+    v.state = 'queue'; v.wait = 0; v.relief = 0; v.patience = PATIENCE[stop]() * v.temper * (nearObj('bench', v.x, v.y, 90) ? 1.2 : 1); v.grumbled = false;
     if (stop === 'range') inRangeOf(v, () => bucketQueue.push(v));
     else if (stop === 'course') teeQueue.push(v);
     else { v.want = pickVenue(v.step > 0); lobbyQueue.push(v); }
@@ -3670,7 +3696,13 @@ label.auto input { accent-color: var(--turf); }
   const bucketSlot = k => { const m = machinePos(0); return { x: m.x - 2 + (k % 2) * 9, y: TEE_Y + 30 + Math.floor(k / 2) * 9 }; };
   const baySlot = k => ({ x: rangeX1() - 14 - (k % 4) * 9, y: TEE_Y + 46 + Math.floor(k / 4) * 9 });
   // when the line moves forward, people in it get some patience back
-  function calm(q) { for (const v of q) v.wait = Math.max(0, v.wait - 10); }
+  // moving up the line gives a little patience back: 4% a step, and never more than a quarter of it per queue
+  function calm(q) {
+    for (const v of q) {
+      const cap = (v.patience || 60) * 0.25, give = Math.min((v.patience || 60) * 0.04, cap - (v.relief || 0), v.wait);
+      if (give > 0) { v.wait -= give; v.relief = (v.relief || 0) + give; }
+    }
+  }
   function serveBuckets() {
     for (let m = 0; m < machines(); m++) {
       if (filling[m]) continue;
@@ -3690,7 +3722,7 @@ label.auto input { accent-color: var(--turf); }
     moneyPop(v, bucketPrice()); priceReact(v, ratioOf('bucket'));
     v.hasBucket = true; v.state = 'queue'; v.patience = PATIENCE.bay() * v.temper; v.grumbled = false;
     if (v.wait > v.patience * 0.5) emote(v, -3, 'annoyed', LINES.finally, 0.4); else v.mood = Math.min(100, moodOf(v) + 2);
-    v.wait = 0;
+    v.wait = 0; v.relief = 0;
     rangeQueue.push(v);
   }
   function serveRange() {
@@ -3751,7 +3783,7 @@ label.auto input { accent-color: var(--turf); }
   }
   function startCheckin(v) {
     if (isDark() || !courseOK() || !facOpen('course')) { v.step++; return nextStop(v); }   // no round today: skip the desk and the course
-    walkNet(v, v.at, 'LOBBY', [], () => { v.state = 'queue'; v.wait = 0; v.patience = PATIENCE.checkin() * v.temper; v.grumbled = false; deskQueue.push(v); });
+    walkNet(v, v.at, 'LOBBY', [], () => { v.state = 'queue'; v.wait = 0; v.relief = 0; v.patience = PATIENCE.checkin() * v.temper; v.grumbled = false; deskQueue.push(v); });
   }
   function serveDesk() {
     deskQueue.forEach((v, k) => { v.slot = deskSlot(k); });
@@ -4131,7 +4163,7 @@ label.auto input { accent-color: var(--turf); }
     if (v.recorded) return; v.recorded = true;
     if (v.celeb) celebLeaves(v);
     if (v.ejected) return;   // nobody misses a troublemaker
-    S.rep = (S.rep === undefined ? 70 : S.rep) * 0.97 + moodOf(v) * 0.03;
+    S.rep = (S.rep === undefined ? 70 : S.rep) * 0.985 + moodOf(v) * 0.015;   // roughly the last hundred visitors
   }
   const repMult = () => Math.max(0.85, Math.min(1.15, 0.85 + 0.3 * ((S.rep === undefined ? 70 : S.rep) - 40) / 60));
   const avgMood = () => { const p = visitors.filter(v => v.state !== 'drive' && v.state !== 'gone'); return p.length ? p.reduce((a, v) => a + moodOf(v), 0) / p.length : null; };
@@ -4273,7 +4305,7 @@ label.auto input { accent-color: var(--turf); }
   // members pay monthly, play for free and come back often
   let memberAcc = 0;
   const memberCap = () => 14 * slots();
-  const memberDemand = () => isDark() || isFrost() || eventRunning() || !courseOK() || !facOpen('course') ? 0 : (S.members || 0) / (3 * DAY_LEN) * (0.5 + 0.5 * seasonDemand()) * (S.wx === 'rain' ? 0.4 : 1);
+  const memberDemand = () => isDark() || isFrost() || eventRunning() || !courseOK() || !facOpen('course') ? 0 : (S.members || 0) / DAY_LEN * (0.5 + 0.5 * seasonDemand()) * (S.wx === 'rain' ? 0.4 : 1);
   function membersTick(dt) {
     if (S.members > 0) earn(S.members * S.prices.member / (MONTH_DAYS * DAY_LEN) * dt, 'members');
     memberAcc += memberDemand() * dt;
@@ -4283,10 +4315,12 @@ label.auto input { accent-color: var(--turf); }
     if (!courseOK()) { S.memberLog = { join: 0, leave: 0 }; return { join: 0, leave: 0 }; }
     const r = ratioOf('member'), rep = S.rep === undefined ? 70 : S.rep, rating = L('back9') ? rating18() : rating9();
     const seasonF = ['spring', 'summer'].includes(season()) ? 1.3 : 0.6;
-    const pot = Math.max(0, 3 + (rep - 60) / 6 + rating / 25) * valueDemand(1 + (r - 1) * 1.2) * seasonF;
+    // members join a club worth joining: stars set the pace, poor turf and a poor name slow it right down
+    const condF = Math.max(0, Math.min(1.2, (S.cond - 50) / 35)), repF = 0.6 + 0.6 * rep / 100;
+    const pot = [0, 0.5, 1.2, 2.5, 4, 6][Math.max(0, Math.min(5, stars()))] * condF * repF * (1 + rating / 400) * valueDemand(1 + (r - 1) * 1.2) * seasonF;
     const join = Math.max(0, Math.min(memberCap() - (S.members || 0), Math.floor(pot + Math.random())));
     const mm = S.memberMood === undefined ? 70 : S.memberMood;
-    const churn = Math.min(0.5, 0.04 + Math.max(0, (60 - mm) / 120) + Math.max(0, r - 1) * 0.25);
+    const churn = Math.min(0.5, 0.08 + Math.max(0, (60 - mm) / 120) + Math.max(0, r - 1) * 0.25 + Math.max(0, (60 - S.cond) / 200));
     let leave = 0; for (let k = 0; k < (S.members || 0); k++) if (Math.random() < churn) leave++;
     S.members = Math.max(0, (S.members || 0) + join - leave);
     S.memberLog = { join, leave };
@@ -4459,7 +4493,7 @@ label.auto input { accent-color: var(--turf); }
       S.staff.keeper = 1;
       S.world = classicWorld(null); linkRange(S.world); S.design.land = S.world.land;
       { const ro = S.world.objs.find(o => o.type === 'range'); ro.r = newRangeState(); ro.r.mx = ro.x * TILE + 20; ro.r.lvl.bay = 3; ro.r.staff.attend = 1; S.rangeMigrated = true; }
-      S.money = 8000; S.loan = 30000; S.rep = 42; S.turf = Array.from({ length: 18 }, () => Math.round(rnd(35, 55)));
+      S.money = 8000; S.loan = 30000; S.rep = 42; S.invested = 90000; S.turf = Array.from({ length: 18 }, () => Math.round(rnd(35, 55)));
     }
     if (k === 'sandbox') { S.money = 1000000; S.world = freshWorld('sandbox'); S.design.land = S.world.land; }
     rebuildWorld(); layout();

@@ -524,6 +524,7 @@ body.at-title .top, body.at-title .bottom, body.at-title .sheet, body.at-title .
 }
 
 #settingsModal, #slotModal { z-index: 9; }
+.row .st .conn { margin-left: 6px; padding: 3px 8px; font-size: 11px; color: var(--ink); vertical-align: middle; }
 .drot { display: flex; align-items: center; gap: 6px; padding: 4px 12px 2px; flex-wrap: wrap; }
 .drot span { font-size: 12px; font-weight: 800; color: var(--ink); margin-right: auto; }
 .drot .ghost { color: var(--ink); padding: 7px 10px; }
@@ -570,7 +571,7 @@ body.at-title .top, body.at-title .bottom, body.at-title .sheet, body.at-title .
 .bb-t b { font-size: 14px; } .bb-t span { font-size: 12px; color: var(--muted); line-height: 1.35; }
 .bb-b { display: flex; gap: 6px; flex: none; }
 .bb-b .ghost { color: var(--ink); font-size: 13px; padding: 9px 14px; }
-.tool-row { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.tool-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
 @media (max-width: 899px) { .tool-row { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 .tool-btn { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 10px 4px; border-radius: 12px; border: 1px solid var(--line); background: #fff; color: var(--ink); cursor: pointer; font: inherit; }
 .tool-btn svg { width: 24px; height: 24px; color: var(--turf); }
@@ -4188,6 +4189,7 @@ label.auto input { accent-color: var(--turf); }
     Sound.chime();
     toast('Course designer', c.total ? `Construction done: ${fmt(c.total)}` : 'Design saved', `Course rating ${L('back9') ? rating18() : rating9()}. ${L('back9') ? '18-hole rounds are open.' : ''}`, '⛳');
     exitDesign(); save();
+    { const need = needsPath().find(n => n.tee); if (need) setTimeout(() => offerPath(need), 300); }
   }
   function buyParcel(id) {
     const price = parcelPrice();
@@ -4888,11 +4890,11 @@ label.auto input { accent-color: var(--turf); }
     const pricey = PRICE_ITEMS.filter(it => it.shown() && ratioOf(it.k) > 1.25).map(it => it.label.toLowerCase());
     if (!objs().some(o => o.type === 'lot')) tip = 'Welcome! Start with a car park on the public road along the bottom of your land. Open Build and pick Car park.';
     else if (!hasObj('range') && !courseHoles() && !hasObj('shortc')) tip = 'Now build a driving range: it is the quickest way to start earning. Build → Driving range.';
-    else if (unlinked) { tip = `Golfers can't reach your ${OBJ[unlinked.type].label.toLowerCase()}. Lay a footpath from a car park to its door (the red square). Build → Footpath.`; bad = true; }
+    else if (unlinked) { tip = `Golfers can't reach your ${OBJ[unlinked.type].label.toLowerCase()}. Lay a footpath from a car park to its door (the red square), or let Build → Auto path suggest one.`; bad = true; }
     else if (!hasObj('club') && courseHoles()) { tip = 'Golfers check in and pay their green fee at the clubhouse before a round. Build a clubhouse so they can play your course.'; bad = true; }
     else if (!hasObj('club') && S.money >= OBJ.club.cost) tip = 'Build a clubhouse so golfers can shop, eat and drink, and so you can sell memberships.';
     else if (!courseHoles() && S.money >= 8000) tip = 'Ready for golf? Open Course, then the course designer, to build your first holes. Buy land with Build → Buy land.';
-    else if (courseHoles() && !courseOK()) { tip = 'Run a footpath to within a few tiles of the first tee so golfers can start their rounds.'; bad = true; }
+    else if (courseHoles() && !courseOK()) { tip = 'Run a footpath to within a few tiles of the first tee so golfers can start their rounds. Build → Auto path can suggest one.'; bad = true; }
     else if (lowSup) { tip = `You've run out of ${SUPPLIES[lowSup].label.toLowerCase()}. Order more on Build → Supplies, or turn on automatic reordering.`; bad = true; }
     else if (S.money < 0) { tip = `You're overdrawn${S.redDays ? ` (${S.redDays} day${S.redDays > 1 ? 's' : ''})` : ''}. Borrow in Finances, raise prices or cut costs before the bank steps in.`; bad = true; }
     else if (isFrost() && hour() > 6) tip = 'Frost has closed the course until 10:30. The range and clubhouse are still open.';
@@ -5773,6 +5775,11 @@ label.auto input { accent-color: var(--turf); }
     const bar = $('buildBar');
     if (!tool) { bar.hidden = true; return; }
     bar.hidden = false;
+    if (tool.kind === 'suggest') {
+      const h = `<div class="bb-t"><b>Suggested footpath to the ${tool.label}</b><span class="${tool.bad ? 'neg' : ''}">${tool.msg || `${tool.tiles.length} tile${tool.tiles.length === 1 ? '' : 's'} · ${fmt(tool.cost)}. Build it, or lay your own path instead.`}</span></div><div class="bb-b"><button class="buy" type="button" id="bbBuildPath" ${S.money < tool.cost ? 'disabled' : ''}>Build path</button><button class="ghost" type="button" id="bbCancel">Not now</button></div>`;
+      if (bar._h !== h) { bar._h = h; bar.innerHTML = h; }
+      return;
+    }
     const D = tool.kind === 'place' ? OBJ[tool.type] : null;
     const title = D ? (tool.moveId ? `Move: ${D.label}` : `${D.label} · ${fmt(D.cost)}`) : { path: `Footpath · ${fmt(PATH_COST)} a tile`, unpath: 'Remove footpath', erase: 'Demolish', land: 'Buy land', move: 'Move a building' }[tool.kind];
     const help = tool.msg || (D ? TOOL_HELP.place(D) : TOOL_HELP[tool.kind]());
@@ -5788,6 +5795,7 @@ label.auto input { accent-color: var(--turf); }
   $('buildBar').addEventListener('click', e => {
     if (e.target.closest('#bbCancel')) { setTool(null); Sound.ui('close'); }
     else if (e.target.closest('#bbPlace')) commitGhost();
+    else if (e.target.closest('#bbBuildPath')) buildSuggested();
     else if (e.target.closest('#bbBuyLand')) { if (buyPlot(tool.plot)) { tool.msg = 'Bought. The land is yours to build on.'; tool.bad = false; } paintBuildBar(); }
   });
   function commitGhost() {
@@ -5795,8 +5803,10 @@ label.auto input { accent-color: var(--turf); }
     const o = tool.moveId ? objById(tool.moveId) : null;
     const r = o ? moveObj(o, ghostT.tx, ghostT.ty) : placeObj(tool.type, ghostT.tx, ghostT.ty);
     if (!r.ok) { tool.msg = r.why; tool.bad = true; Sound.ui('soft'); paintBuildBar(); return; }
-    const D = OBJ[tool.type];
-    toast('Built', D.label, o ? 'Moved. Check the footpath still reaches the door.' : D.free ? 'Ready.' : 'Lay a footpath to its door (the red square) so golfers can reach it.', '⚒');
+    const D = OBJ[tool.type], placed = o || S.world.objs[S.world.objs.length - 1];
+    const need = D.free ? null : needsPath().find(n => n.o === placed);
+    toast(o ? 'Moved' : 'Built', D.label, need ? "Here's a suggested footpath to its door. Build it, or lay your own." : o ? 'Moved. It is still connected.' : D.free ? 'Ready.' : D.road ? 'Golfers walk on from its exit, the square above it. Run paths from there.' : 'Golfers can already reach it.', '⚒');
+    if (need) { setTool(null); offerPath(need); refreshList(); save(); return; }
     if (D.decor || D.road) { tool.msg = ''; tool.bad = false; ghostT = null; paintBuildBar(); }   // keep placing more of the same
     else setTool(null);
     refreshList(); save();
@@ -5839,6 +5849,7 @@ label.auto input { accent-color: var(--turf); }
   }
   function drawBuildOverlay(t) {
     if (!tool) return;
+    drawSuggestion(t);
     // a faint grid on your own land
     if (cam.s > 0.55) {
       ctx.strokeStyle = 'rgba(255,255,255,0.07)'; ctx.lineWidth = 1; ctx.beginPath();
@@ -5870,6 +5881,7 @@ label.auto input { accent-color: var(--turf); }
       <div class="tool-row">
         <button class="tool-btn" type="button" data-tool="path">${ITEM_ICON.rpark.replace('M9 17V7h4a3 3 0 0 1 0 6H9', 'M6 20l4-16M14 4l4 16')}<b>Footpath</b><span>${fmt(PATH_COST)} a tile</span></button>
         <button class="tool-btn" type="button" data-tool="unpath">${IC('<path d="M4 20l4-16M12 4l4 16M3 3l18 18"/>')}<b>Remove path</b><span>50% back</span></button>
+        <button class="tool-btn" type="button" data-autopath="1">${IC('<path d="M4 20c4 0 4-6 8-6s4-6 8-6"/><circle cx="4" cy="20" r="1.6" fill="currentColor"/><circle cx="20" cy="8" r="1.6" fill="currentColor"/>')}<b>Auto path</b><span>suggests a route</span></button>
         <button class="tool-btn" type="button" data-tool="move">${IC('<path d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3"/>')}<b>Move</b><span>free</span></button>
         <button class="tool-btn" type="button" data-tool="erase">${IC('<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>')}<b>Demolish</b><span>40% back</span></button>
         <button class="tool-btn" type="button" data-tool="land">${IC('<path d="M3 20l6-12 4 7 3-4 5 9z"/>')}<b>Buy land</b><span id="landPrice"></span></button>
@@ -5894,6 +5906,8 @@ label.auto input { accent-color: var(--turf); }
       if (have.length) {
         const unconnected = OBJ[k].free ? 0 : have.filter(o => !connected('OBJ:' + o.id)).length;
         s = D.unique ? (unconnected ? '<span class="neg">Built · not connected to a car park</span>' : '<span class="pos">Built and open</span>') : `${have.length} built${unconnected ? ` · <span class="neg">${unconnected} not connected</span>` : ''}`;
+        const first = OBJ[k].free ? null : have.find(o => !connected('OBJ:' + o.id));
+        if (first) s += ` <button class="ghost dmini conn" type="button" data-connect="${first.id}">Suggest path</button>`;
       }
       if (k === 'academy' && have.length && !N('coach')) s += ' · <span class="neg">hire a teaching pro</span>';
       if (st._h !== s) { st._h = s; st.innerHTML = s; }
@@ -5923,6 +5937,9 @@ label.auto input { accent-color: var(--turf); }
       const k = pb.dataset.placeBtn, have = objOf(k);
       setTool({ kind: 'place', type: k, moveId: OBJ[k].unique && have ? have.id : null }); Sound.ui('select'); return;
     }
+    if (e.target.closest('[data-autopath]')) { Sound.ui('select'); offerNextPath(false); return; }
+    const cn = e.target.closest('[data-connect]');
+    if (cn) { const need = needsPath().find(n => n.o && n.o.id === +cn.dataset.connect); if (need) offerPath(need); Sound.ui('select'); return; }
     const tb = e.target.closest('[data-tool]');
     if (tb) { setTool(tool && tool.kind === tb.dataset.tool ? null : { kind: tb.dataset.tool }); Sound.ui('select'); refreshPlace(); return; }
     const sb = e.target.closest('[data-sup-buy]');
@@ -6190,6 +6207,122 @@ label.auto input { accent-color: var(--turf); }
   function pickShortBand() {
     const r = ratioOf('shortc'), w = HCP_BANDS.map(b => [b, b.share * SHORTC_W[b.k] * valueDemand(1 + (r - 1) * b.priceE)]), tot = w.reduce((a, x) => a + x[1], 0);
     let x = Math.random() * tot; for (const [b, v] of w) { x -= v; if (x <= 0) return b; } return BAND.high;
+  }
+
+  // =====================================================================================
+  // Suggested footpaths: after you place something, the game works out the cheapest path from
+  // its door to your path network (or a car park) and shows it as a ghost. Approve it and it's built.
+  // =====================================================================================
+  // what still needs a path: buildings golfers can't reach, car parks that lead nowhere, the first tee
+  function linkLot(o) {
+    const f = fieldOf('OBJ:' + o.id);
+    return objs().some(b => !OBJ[b.type].free && b.type !== 'lot' && (() => { const d = doorOf(b); return d.ty < GH && f[tIdx(d.tx, d.ty)] >= 0; })());
+  }
+  function needsPath() {
+    const out = [];
+    const buildings = objs().filter(o => !OBJ[o.type].free && o.type !== 'lot');
+    for (const o of buildings) if (!connected('OBJ:' + o.id)) out.push({ o, label: (o.type === 'range' && rangeObjs().length > 1 ? rangeName(o) : OBJ[o.type].label).toLowerCase() });
+    if (buildings.length) for (const o of objs()) if (o.type === 'lot' && !linkLot(o)) out.push({ o, label: 'car park' });
+    if (courseHoles() > 0 && !courseOK() && hasObj('club')) out.push({ tee: true, label: 'first tee' });
+    return out;
+  }
+  // a tile you could lay path on (or one that already has path)
+  const pathable = i => isPath[i] === 1 || (occ[i] === 0 && ownsTile(i % GW, (i / GW) | 0));
+  // the tiles that already count as "connected": every path reachable from a car park, plus car park exits
+  function targetsFor(src) {
+    const T = new Uint8Array(GW * GH);
+    const lots = objs().filter(o => o.type === 'lot' && o !== src);
+    for (const l of lots) {
+      const f = fieldOf('OBJ:' + l.id); for (let i = 0; i < f.length; i++) if (f[i] >= 0) T[i] = 1;
+      const e = doorOf(l); if (e.ty >= 0) T[tIdx(e.tx, e.ty)] = 1;
+    }
+    // a car park can also link straight to a building's door
+    if (src && src.type === 'lot') for (const o of objs()) if (!OBJ[o.type].free && o.type !== 'lot') { const d = doorOf(o); if (d.ty < LAND_ROWS) T[tIdx(d.tx, d.ty)] = 1; }
+    return T;
+  }
+  // cheapest route over the tile grid: existing path is almost free, fairways cost extra, turns cost a little
+  function findPath(starts, T) {
+    const N = GW * GH, INF = 1e9, dist = new Float64Array(N * 4).fill(INF), prev = new Int32Array(N * 4).fill(-1);
+    const heap = [];
+    const push = (d, s) => { heap.push([d, s]); let i = heap.length - 1; while (i) { const p = (i - 1) >> 1; if (heap[p][0] <= heap[i][0]) break; [heap[p], heap[i]] = [heap[i], heap[p]]; i = p; } };
+    const pop = () => { const top = heap[0], last = heap.pop(); if (heap.length) { heap[0] = last; let i = 0; for (;;) { const l = 2 * i + 1, r = l + 1; let m = i; if (l < heap.length && heap[l][0] < heap[m][0]) m = l; if (r < heap.length && heap[r][0] < heap[m][0]) m = r; if (m === i) break; [heap[m], heap[i]] = [heap[i], heap[m]]; i = m; } } return top; };
+    const tileCost = new Float32Array(N).fill(-1);
+    const costOf = i => {
+      if (tileCost[i] >= 0) return tileCost[i];
+      let c;
+      if (isPath[i]) c = 0.05;
+      else { const p = tileC(i % GW, (i / GW) | 0); c = 1 + (holeNear(p.x, p.y, 0) >= 0 ? 3 : 0); }
+      return (tileCost[i] = c);
+    };
+    for (const s of starts) { const i = tIdx(s.tx, s.ty); if (!pathable(i)) continue; for (let d = 0; d < 4; d++) { const st = i * 4 + d; dist[st] = costOf(i); push(dist[st], st); } }
+    const DX = [1, -1, 0, 0], DY = [0, 0, 1, -1];
+    let end = -1, guard = 0;
+    while (heap.length && guard++ < 400000) {
+      const [d, st] = pop(); if (d > dist[st]) continue;
+      const i = st >> 2, dir = st & 3;
+      if (T[i]) { end = st; break; }
+      const x = i % GW, y = (i / GW) | 0;
+      for (let k = 0; k < 4; k++) {
+        const nx = x + DX[k], ny = y + DY[k]; if (nx < 0 || ny < 0 || nx >= GW || ny >= LAND_ROWS) continue;
+        const j = ny * GW + nx; if (!pathable(j) && !T[j]) continue;
+        const nd = d + costOf(j) + (k !== dir ? 0.35 : 0), ns = j * 4 + k;
+        if (nd < dist[ns]) { dist[ns] = nd; prev[ns] = st; push(nd, ns); }
+      }
+    }
+    if (end < 0) return null;
+    const tiles = []; for (let st = end; st >= 0; st = prev[st]) tiles.push(st >> 2);
+    const fresh = [...new Set(tiles)].filter(i => !isPath[i] && occ[i] === 0);
+    return { tiles: fresh, cost: fresh.length * PATH_COST };
+  }
+  // work out a suggestion for one thing that needs a path
+  function suggestFor(need) {
+    let starts;
+    if (need.tee) {
+      const t = withGeo(liveGeo, () => teePos(0)), c = tileOf(t.x, t.y); starts = [];
+      for (let dy = -4; dy <= 4; dy++) for (let dx = -4; dx <= 4; dx++) { const tx = c.tx + dx, ty = c.ty + dy; if (tx >= 0 && ty >= 0 && tx < GW && ty < LAND_ROWS && pathable(tIdx(tx, ty))) starts.push({ tx, ty }); }
+    } else starts = [doorOf(need.o)];
+    const T = targetsFor(need.o);
+    if (!T.some(Boolean)) return { fail: need.o && need.o.type === 'lot' ? 'Place a building first, then connect the car park to it.' : 'Place a car park on the road first: paths have to lead back to one.' };
+    const r = findPath(starts, T);
+    if (!r) return { fail: `No route: the ${need.label}'s door is blocked, or the land in between isn't yours. Buy land or move things out of the way.` };
+    return r;
+  }
+  // show a suggestion as a ghost in the build bar
+  function offerPath(need) {
+    const r = suggestFor(need);
+    if (r.fail) { toast('Footpath', `Can't reach the ${need.label}`, r.fail, '!'); return false; }
+    if (!r.tiles.length) return false;
+    setTool({ kind: 'suggest', tiles: r.tiles, cost: r.cost, label: need.label, need });
+    const xs = r.tiles.map(i => i % GW), ys = r.tiles.map(i => (i / GW) | 0);
+    glideTo((Math.min(...xs) + Math.max(...xs) + 1) / 2 * TILE, (Math.min(...ys) + Math.max(...ys) + 1) / 2 * TILE);
+    return true;
+  }
+  // the next thing that needs connecting, if any
+  function offerNextPath(quiet) {
+    for (const need of needsPath()) if (offerPath(need)) return true;
+    if (!quiet) toast('Footpaths', 'Everything is connected', 'Golfers can reach every building from your car parks.', '✓');
+    return false;
+  }
+  function buildSuggested() {
+    if (!tool || tool.kind !== 'suggest') return;
+    const tiles = tool.tiles.filter(i => !isPath[i] && occ[i] === 0), cost = tiles.length * PATH_COST;
+    if (S.money < cost) { tool.msg = `Not enough cash: this path costs ${fmt(cost)}.`; tool.bad = true; paintBuildBar(); Sound.ui('soft'); return; }
+    spend(cost, 'build'); S.invested = (S.invested || 0) + cost;
+    for (const i of tiles) if (!S.world.paths.includes(i)) S.world.paths.push(i);
+    rebuildWorld(); Sound.kaching();
+    toast('Footpath', `Path to the ${tool.label} built`, `${tiles.length} tiles for ${fmt(cost)}.`, '⚒');
+    setTool(null); refreshList(); save();
+    setTimeout(() => offerNextPath(true), 400);   // anything else left to connect?
+  }
+  function drawSuggestion(t) {
+    if (!tool || tool.kind !== 'suggest') return;
+    const a = 0.35 + 0.2 * Math.sin(t * 4);
+    for (const i of tool.tiles) {
+      const x = (i % GW) * TILE, y = ((i / GW) | 0) * TILE;
+      if (!vis(x - 2, y - 2, x + TILE + 2, y + TILE + 2)) continue;
+      ctx.fillStyle = `rgba(242,193,78,${a})`; ctx.fillRect(x + 2, y + 2, TILE - 4, TILE - 4);
+      ctx.strokeStyle = 'rgba(242,193,78,0.95)'; ctx.lineWidth = 1.5; ctx.setLineDash([4, 3]); ctx.strokeRect(x + 2, y + 2, TILE - 4, TILE - 4); ctx.setLineDash([]);
+    }
   }
 
   // ---------- Startup ----------

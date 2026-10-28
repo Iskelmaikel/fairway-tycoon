@@ -815,7 +815,7 @@ label.auto input { accent-color: var(--turf); }
 <script>
 (() => {
   const $ = id => document.getElementById(id);
-  const GAME_VERSION = '0.34.0';   // bump with every release
+  const GAME_VERSION = '0.35.0';   // bump with every release
   const SAVE_KEY = 'fairway-tycoon-v2';
   // The desktop build (Electron) exposes window.fairwayPlatform; in a browser this is null and saves stay in localStorage.
   const Platform = window.fairwayPlatform || null;
@@ -1054,6 +1054,7 @@ label.auto input { accent-color: var(--turf); }
   };
   const fieldTotal = () => { let s = 0; for (const c of S.cells) s += c; return s; };
   let inFlight = [], flights = [], pickers = [], handAcc = 0;
+  const RANGE_IMPACT = 0.75;   // seconds from the start of a range swing to the strike
 
   function hitBall(g) {
     const x1 = rangeX1();
@@ -1061,8 +1062,8 @@ label.auto input { accent-color: var(--turf); }
     const ly = RY0 + 18 + Math.pow(Math.random(), 0.9) * (FIELD_Y1 - RY0 - 40);
     const col = Math.min(activeCols() - 1, Math.floor((lx - RX0) / CELL_W));
     const row = Math.min(GR - 1, Math.max(0, Math.floor((ly - RY0 - 10) / CELL_H)));
-    inFlight.push({ cell: row * GCMAX + col, at: simTime + 1.3 });
-    g.swing = 1;
+    inFlight.push({ cell: row * GCMAX + col, at: simTime + 1.3 + RANGE_IMPACT });
+    g.swing = 1; g.swingT = 0;
     if (flights.length < 40) flights.push({ bay: g.bay, x: lx, y: ly });
   }
   function takeNearDispenser(max) {
@@ -1839,14 +1840,14 @@ label.auto input { accent-color: var(--turf); }
     ctx.fillStyle = '#2b2f36'; ctx.fillRect(1206, 1358, 6, 4);                                          // till
     ctx.fillStyle = '#e8e2d2'; ctx.fillRect(1176, 1424, 18, 6);                                         // door mat
     ctx.font = '800 8px Figtree, system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(40,30,20,0.6)'; ctx.fillText('PRO SHOP', 1185, 1424);
-    for (let k = 0; k < Math.min(3, N('assist') + 1); k++) drawGolfer(1210 + k * 8, 1372, k ? '#1f6b3a' : '#2c4a6e', null, 1);
+    for (let k = 0; k < Math.min(3, N('assist') + 1); k++) drawPerson(1210 + k * 8, 1372, staffLook(k ? 'shop2' : 'shop', k), { act: 'work', k: (simTime * 0.4 + k * 0.3) % 1, scale: 1 });
     // restaurant + kitchen
     const resto = L('resto') > 0;
     room(R.resto, '#ece2cf', resto);
     if (resto) {
       ctx.fillStyle = '#b9b2a3'; ctx.fillRect(1002, 1352, 22, 76);                                       // kitchen
       ctx.fillStyle = '#8d949a'; ctx.fillRect(1004, 1356, 18, 10); ctx.fillRect(1004, 1372, 18, 10); ctx.fillStyle = '#d64a2e'; ctx.fillRect(1006, 1358, 4, 4); ctx.fillRect(1014, 1358, 4, 4);
-      for (let k = 0; k < Math.min(2, N('chef')); k++) drawGolfer(1013, 1396 + k * 14, '#ffffff', null, 1);
+      for (let k = 0; k < Math.min(2, N('chef')); k++) { const ph = simTime * 0.5 + k * 2, cx = 1013 + Math.sin(ph) * 5, vx = Math.cos(ph); drawPerson(cx, 1396 + k * 14, staffLook('chef', k), Math.abs(vx) > 0.2 ? { ang: vx > 0 ? 0 : Math.PI, walk: cx * 0.6, scale: 1 } : { act: 'work', k: (simTime * 0.8) % 1, scale: 1 }); }
       const nT = Math.ceil(VENUES.resto.cap() / 4);
       for (let k = 0; k < 6; k++) { const s = VENUES.resto.seats[k * 4]; if (k < nT) table(s.tx, s.ty, 6, '#ffffff'); }
       if (!VENUES.resto.open()) { ctx.fillStyle = 'rgba(30,20,10,0.55)'; ctx.font = '800 8px Figtree, system-ui, sans-serif'; ctx.fillText('NEEDS A CHEF', 1078, 1424); }
@@ -1860,7 +1861,7 @@ label.auto input { accent-color: var(--turf); }
       for (const s of VENUES.bar.seats.slice(0, 6)) { ctx.fillStyle = '#2b1d12'; ctx.beginPath(); ctx.arc(s.x, s.y + 3, 2.6, 0, Math.PI * 2); ctx.fill(); }
       const hiTables = Math.max(0, Math.ceil((VENUES.bar.cap() - 6) / 3));
       for (let k = 0; k < 3; k++) if (k < hiTables) { const s = VENUES.bar.seats[6 + k * 3]; table(s.tx, s.ty, 5, '#a37a52'); }
-      for (let k = 0; k < Math.min(2, N('bar')); k++) drawGolfer(1262 + k * 26, 1361, '#2b2f36', null, 1);
+      for (let k = 0; k < Math.min(2, N('bar')); k++) drawPerson(1262 + k * 26 + Math.sin(simTime * 0.25 + k) * 6, 1361, staffLook('bar', k), { act: 'work', k: (simTime * 0.7 + k * 0.5) % 1, scale: 1 });
       if (!VENUES.bar.open()) { ctx.fillStyle = 'rgba(255,240,220,0.8)'; ctx.font = '800 8px Figtree, system-ui, sans-serif'; ctx.fillText('NEEDS A BARTENDER', 1280, 1424); }
     }
     // locker rooms
@@ -1916,46 +1917,561 @@ label.auto input { accent-color: var(--turf); }
     ctx.fillStyle = 'rgba(255,255,255,0.85)';
     for (let k = -2; k <= 2; k++) horiz ? ctx.fillRect(x + k * 5 - 1.5, y - 10, 3, 20) : ctx.fillRect(x - 10, y + k * 5 - 1.5, 20, 3);
   }
-  function drawCar(v, t) {
+  function drawCar(v, t) { drawCarSprite(v, t); }
+
+  // =====================================================================================
+  // Sprites: people, golf carts, cars, staff vehicles and wildlife, drawn as animated vector art
+  // straight onto the canvas (no image files), so they stay crisp at every zoom.
+  // People stand upright facing one of four ways; vehicles are seen from above.
+  // =====================================================================================
+  const SKIN = ['#f6d7b8', '#ebbd93', '#d19a6c', '#a8714a', '#7a4d2e', '#5a3820'];
+  const HAIR = ['#2b2118', '#3b2a1e', '#5a3b24', '#8a5a32', '#c9a063', '#e3cf9a', '#a8452a', '#8e8e8e', '#d9d6cf'];
+  const BOTTOMS = ['#e6dcc4', '#2c3a52', '#5b6168', '#f2f0ea', '#2b2f36', '#8a7a5a', '#3d5a40', '#a7b0b8'];
+  const HATS = ['#ffffff', '#2c4a6e', '#e8432e', '#2b2f36', '#f2c14e', '#3f7d4f', '#d9d4c4', '#7fa8bf'];
+  const BAGC = ['#2b2f36', '#2c4a6e', '#e8432e', '#f5f5f0', '#3f7d4f', '#7a4f2c', '#f2c14e', '#9b2d3a'];
+  // mix a hex colour towards black (f < 0) or white (f > 0)
+  const tintCache = new Map();
+  function tint(hex, f) {
+    const key = hex + f; let c = tintCache.get(key); if (c) return c;
+    const n = parseInt(hex.slice(1), 16), r = n >> 16, g = (n >> 8) & 255, b = n & 255;
+    const m = v => Math.round(f < 0 ? v * (1 + f) : v + (255 - v) * f);
+    c = `rgb(${m(r)},${m(g)},${m(b)})`; tintCache.set(key, c); return c;
+  }
+  // every person gets a stable look from their id: skin, hair, hat, trousers or shorts, build
+  const looks = new WeakMap();
+  function lookOf(o, shirt) {
+    let lk = looks.get(o); if (lk && lk.shirt === (shirt || o.color)) return lk;
+    const r = seeded(((o.id || 0) + 7) * 7919 % 2147483646 + 1); r(); r();
+    const pick = a => a[Math.floor(r() * a.length)];
+    const older = r() < 0.22, style = pick(['short', 'short', 'side', 'long', 'pony', 'curly', 'bald', 'short']);
+    const hatR = r();
+    lk = {
+      shirt: shirt || o.color || '#ffffff', skin: pick(SKIN), hair: older ? pick(['#8e8e8e', '#d9d6cf', '#bdb8ae']) : pick(HAIR),
+      style: older && style === 'long' ? 'short' : style,
+      hat: hatR < 0.3 ? 'cap' : hatR < 0.38 ? 'visor' : hatR < 0.43 ? 'bucket' : null, hatC: pick(HATS),
+      bottom: pick(BOTTOMS), legs: r() < 0.3 ? 'shorts' : 'trousers', shoes: r() < 0.55 ? '#f4f4f0' : '#2b2f36',
+      build: 0.9 + r() * 0.25, h: 0.95 + r() * 0.1, bag: pick(BAGC), trolley: r() < 0.35, umb: pick(['#e8432e', '#2c4a6e', '#f2c14e', '#ffffff', '#3f7d4f', '#2b2f36']),
+    };
+    if ((lk.style === 'long' || lk.style === 'pony') && r() < 0.35) lk.legs = 'skirt';
+    looks.set(o, lk);
+    return lk;
+  }
+  // staff wear a uniform
+  const UNIFORM = {
+    shop:    { shirt: '#2c4a6e', hat: null, bottom: '#2b2f36', legs: 'trousers' },
+    shop2:   { shirt: '#1f6b3a', hat: null, bottom: '#2b2f36', legs: 'trousers' },
+    chef:    { shirt: '#ffffff', hat: 'chef', hatC: '#ffffff', bottom: '#2b2f36', legs: 'trousers', apron: '#e9e9e4' },
+    bar:     { shirt: '#f4f4f0', vest: '#2b2f36', hat: null, bottom: '#2b2f36', legs: 'trousers' },
+    attend:  { shirt: '#3a4a5a', vest: '#ff8a3d', hat: 'cap', hatC: '#ff8a3d', bottom: '#2b2f36', legs: 'trousers' },
+    picker:  { shirt: '#3a7bd5', hat: 'cap', hatC: '#ffffff', bottom: '#5b6168', legs: 'shorts' },
+    marshal: { shirt: '#1f3a5f', hat: 'cap', hatC: '#ffffff', bottom: '#e6dcc4', legs: 'trousers', band: '#ffb31a' },
+    keeper:  { shirt: '#3d5a40', vest: '#d8f24a', hat: 'cap', hatC: '#3d5a40', bottom: '#3d5a40', legs: 'trousers' },
+  };
+  const staffLooks = new Map();
+  function staffLook(role, id = 0) {
+    const key = role + ':' + id; let lk = staffLooks.get(key); if (lk) return lk;
+    lk = { ...lookOf({ id: 9000 + id * 31 + role.length * 7 }), ...UNIFORM[role] };
+    staffLooks.set(key, lk); return lk;
+  }
+
+  // ---- walking: each walker's stride follows the distance they actually cover ----
+  const gaits = new WeakMap();
+  function gait(o, dt) {
+    let g = gaits.get(o);
+    if (!g) { g = { x: o.x, y: o.y, ph: Math.random() * 6, idle: 9, dir: Math.PI / 2 }; gaits.set(o, g); return g; }
+    const dx = o.x - g.x, dy = o.y - g.y, d = Math.hypot(dx, dy);
+    g.x = o.x; g.y = o.y;
+    if (d > 0.02 && d < 40) { g.ph += d * 0.55; g.idle = 0; g.dir = Math.atan2(dy, dx); g.moving = true; }
+    else { g.idle += dt; g.moving = g.idle < 0.12 && g.moving; }
+    return g;
+  }
+  // which way a person faces: S (towards you), N, E or W
+  function faceOf(ang) { const c = Math.cos(ang), s = Math.sin(ang); return Math.abs(c) > Math.abs(s) * 1.1 ? (c > 0 ? 'E' : 'W') : (s > 0 ? 'S' : 'N'); }
+
+  // ---- the golf swing, seen face-on: where the hands and the clubhead are at each moment ----
+  // k: 0 address, 0.5 top of the backswing, 0.6 impact, 0.85 the finish
+  const SWING_K = [0, 0.14, 0.5, 0.6, 0.7, 0.86, 1];
+  const SWING_H = [0, -0.3, -2.05, 0.02, 1.35, 2.25, 2.2];   // hands, around the chest
+  const SWING_C = [0.04, -0.45, -4.35, 0.08, 1.7, 5.0, 5.0]; // clubshaft direction
+  function swingAt(k, amp) {
+    k = Math.max(0, Math.min(1, k));
+    let i = 0; while (i < SWING_K.length - 2 && k > SWING_K[i + 1]) i++;
+    let f = (k - SWING_K[i]) / (SWING_K[i + 1] - SWING_K[i]); f = f * f * (3 - 2 * f);
+    const h = SWING_H[i] + (SWING_H[i + 1] - SWING_H[i]) * f, c = SWING_C[i] + (SWING_C[i + 1] - SWING_C[i]) * f;
+    return { h: h * amp, c: c * (amp < 1 ? amp * 0.85 : 1) };
+  }
+
+  // ---- a person ----
+  // p: { ang, walk (phase or null), act: swing|chip|putt|address|cheer|slump|sit|bend|work|wave, k (0..1), flip,
+  //      scale, carry: bag|bucket|basket|tube|null, umbrella, look-around }
+  function limb(x0, y0, x1, y1, w, c0, c1, split = 0.5) {
+    const mx = x0 + (x1 - x0) * split, my = y0 + (y1 - y0) * split;
+    ctx.lineWidth = w; ctx.strokeStyle = c0; ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(mx, my); ctx.stroke();
+    ctx.strokeStyle = c1; ctx.beginPath(); ctx.moveTo(mx, my); ctx.lineTo(x1, y1); ctx.stroke();
+  }
+  function drawPerson(x, y, lk, p = {}) {
+    const s = (p.scale || 1.2) * lk.h, px = cam.s * s, fine = px > 2.1;
+    const act = p.act || null, swingLike = act === 'swing' || act === 'chip' || act === 'putt' || act === 'address';
+    const dir = swingLike || act === 'cheer' || act === 'slump' || act === 'wave' ? 'S' : act === 'sit' ? (p.face || 'S') : faceOf(p.ang == null ? Math.PI / 2 : p.ang);
+    const side = dir === 'E' || dir === 'W', walking = p.walk != null && !act;
+    const ph = walking ? p.walk : 0, step = Math.sin(ph), lift = walking ? Math.abs(Math.cos(ph)) : 0;
+    const k = p.k || 0;
+    if (px < 1.15 && !swingLike) {
+      // zoomed far out: a quick figure in the same colours
+      ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
+      const lift2 = walking ? Math.sin(ph) * 1.1 : 0, bob2 = act === 'sit' ? 2.6 : 0;
+      ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.fillRect(-2.6, -0.6, 6, 1.6);
+      if (act !== 'sit') { ctx.fillStyle = lk.bottom; ctx.fillRect(-2 + lift2 * 0.3, -5.6, 1.7, 5.4); ctx.fillRect(0.3 - lift2 * 0.3, -5.6, 1.7, 5.4); }
+      if (p.carry === 'bag') { ctx.fillStyle = lk.bag; ctx.fillRect(1.6, -12 + bob2, 2.2, 8.5); }
+      ctx.fillStyle = lk.shirt; ctx.fillRect(-2.5, -11.2 + bob2, 5, 6);
+      ctx.fillStyle = lk.skin; ctx.fillRect(-1.9, -15.4 + bob2, 3.8, 3.9);
+      ctx.fillStyle = lk.hat === 'cap' || lk.hat === 'bucket' || lk.hat === 'chef' ? lk.hatC || '#ffffff' : lk.hair; ctx.fillRect(-2.1, -15.8 + bob2, 4.2, 1.6);
+      if (p.umbrella) { ctx.fillStyle = lk.umb; ctx.fillRect(-5.5, -19.5, 11, 2.4); }
+      ctx.restore();
+      return;
+    }
+    ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
+    // shadow on the ground
+    ctx.fillStyle = 'rgba(0,0,0,0.24)'; ctx.beginPath(); ctx.ellipse(0.8, 0.4, act === 'sit' ? 3.6 : 3.4, 1.35, 0, 0, Math.PI * 2); ctx.fill();
+    if (dir === 'W' || p.flip) ctx.scale(-1, 1);
+    const bob = walking ? -lift * 0.55 : act === 'cheer' ? -Math.abs(Math.sin(k * Math.PI * 3)) * 1.6 : act === 'sit' ? 2.6 : act === 'bend' ? 1.6 : act === 'putt' || act === 'address' ? 0.6 : 0;
+    const w = (side ? 3.3 : 4.8) * lk.build;
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    const legC = lk.legs === 'trousers' ? lk.bottom : lk.skin, shoe = lk.shoes;
+    // swing: weight moves to the front foot, the back heel comes up
+    let sw = null, hipX = 0;
+    if (swingLike) {
+      sw = act === 'putt' ? { h: k < 0.5 ? -Math.sin(k / 0.5 * Math.PI) * 0.3 : Math.sin(Math.min(1, (k - 0.5) / 0.25) * Math.PI / 2) * 0.3, c: 0 } : act === 'address' ? { h: Math.sin(k * Math.PI * 2) * 0.12, c: Math.sin(k * Math.PI * 2) * 0.2 } : swingAt(k, act === 'chip' ? 0.5 : 1);
+      if (act === 'putt') sw.c = sw.h;
+      hipX = act === 'swing' ? (k > 0.6 ? Math.min(1, (k - 0.6) / 0.2) * 0.9 : k > 0.15 ? -Math.min(1, (k - 0.15) / 0.35) * 0.35 : 0) : 0;
+    }
+    const lean = act === 'putt' || act === 'address' ? 0.8 : act === 'bend' ? 1.4 : 0;
+    const top = -11.2 + bob + lean, waist = -5.4 + bob;
+    const turn = sw && act !== 'putt' ? Math.min(1, Math.abs(sw.h) / 2.1) : 0;
+    const tw = w * (1 - 0.22 * turn), tx = hipX * 0.6 + (sw ? sw.h * 0.15 : 0);
+    let club = null;
+    if (sw) {
+      const R = act === 'putt' ? 4.4 : 4.7, H = { x: tx + Math.sin(sw.h) * R, y: top + 2.4 + Math.cos(sw.h) * R + (act === 'putt' ? 0.6 : 0) };
+      const Lc = act === 'putt' ? 6.4 : act === 'chip' ? 7.6 : 8.6;
+      club = { H, ex: H.x + Math.sin(sw.c) * Lc, ey: H.y + Math.cos(sw.c) * Lc, behind: act === 'swing' && (k > 0.4 && k < 0.57 || k > 0.77) };
+    }
+    const drawClub = () => {
+      const { H, ex, ey } = club;
+      ctx.lineWidth = 0.55; ctx.strokeStyle = '#d5dce2'; ctx.beginPath(); ctx.moveTo(H.x, H.y); ctx.lineTo(ex, ey); ctx.stroke();
+      ctx.lineWidth = 0.9; ctx.strokeStyle = '#2b2f36'; ctx.beginPath(); ctx.moveTo(H.x, H.y); ctx.lineTo(H.x + Math.sin(sw.c) * 1.4, H.y + Math.cos(sw.c) * 1.4); ctx.stroke();
+      ctx.save(); ctx.translate(ex, ey); ctx.rotate(-sw.c); ctx.fillStyle = act === 'putt' ? '#9aa4ad' : '#3a4048'; ctx.fillRect(-1.3, -0.5, 2.1, 1.1); ctx.restore();
+    };
+    // a chair to sit on
+    if (act === 'sit' && (p.face || 'S') === 'S') { ctx.fillStyle = '#6b4f30'; ctx.beginPath(); ctx.roundRect(-3.4, top - 0.4, 6.8, 6.2, 1.2); ctx.fill(); ctx.fillStyle = '#5a3f24'; ctx.fillRect(-3.6, waist - 0.6, 7.2, 1.4); }
+    // ---- carried golf bag behind the body ----
+    const bag = p.carry === 'bag' && act !== 'sit';
+    const drawBag = () => {
+      ctx.save(); ctx.translate(side ? -1.9 : 1.6, -3.4 + bob); ctx.rotate(side ? -0.24 : 0.32);
+      ctx.fillStyle = lk.bag; ctx.fillRect(-1.25, -9.2, 2.5, 9.4);
+      ctx.fillStyle = tint(lk.bag, -0.3); ctx.fillRect(-1.25, -2.6, 2.5, 1.1);
+      ctx.fillStyle = '#cfd6dc'; ctx.fillRect(-1.1, -10.6, 0.8, 1.6); ctx.fillRect(0.2, -10.9, 0.9, 1.9);
+      ctx.fillStyle = '#e8432e'; ctx.beginPath(); ctx.arc(-0.2, -10.4, 0.75, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    };
+    if (bag && dir !== 'N') drawBag();
+    const trolley = p.carry === 'trolley' && !act;
+    if (trolley) {
+      const tx0 = side ? -5.6 : 4.2, rock = walking ? Math.sin(ph * 2) * 0.05 : 0;
+      ctx.fillStyle = '#1d2023'; ctx.beginPath(); ctx.arc(tx0, -1.1, 1.15, 0, Math.PI * 2); ctx.fill();
+      if (!side) { ctx.beginPath(); ctx.arc(tx0 + 2.2, -1.3, 1.0, 0, Math.PI * 2); ctx.fill(); }
+      ctx.save(); ctx.translate(tx0 + (side ? 0 : 1.1), -1.6); ctx.rotate((side ? -0.42 : -0.12) + rock);
+      ctx.strokeStyle = '#9aa4ad'; ctx.lineWidth = 0.45; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -9.5); ctx.stroke();
+      ctx.fillStyle = lk.bag; ctx.fillRect(-1.2, -9, 2.4, 8); ctx.fillStyle = tint(lk.bag, -0.3); ctx.fillRect(-1.2, -3.2, 2.4, 1);
+      ctx.fillStyle = '#cfd6dc'; ctx.fillRect(-1, -10.3, 0.8, 1.5); ctx.fillRect(0.2, -10.6, 0.8, 1.8);
+      ctx.restore();
+      // the handle runs back to the hand
+      ctx.strokeStyle = '#6c757d'; ctx.lineWidth = 0.45; ctx.beginPath(); ctx.moveTo(side ? -3.3 : 3.1, -8.4 + bob); ctx.lineTo(side ? -0.9 : 2.7, -6.1 + bob); ctx.stroke();
+    }
+    // ---- legs ----
+    if (act !== 'sit') {
+      const hip = -5.6 + bob;
+      if (side) {
+        const a = walking ? step * 0.55 : 0;
+        const fb = { x: -Math.sin(a) * 5.6, y: -Math.max(0, -Math.cos(ph)) * (walking ? 0.6 : 0) }, ff = { x: Math.sin(a) * 5.6, y: -Math.max(0, Math.cos(ph)) * (walking ? 0.6 : 0) };
+        for (const [f, dark] of [[fb, true], [ff, false]]) {
+          const kneeX = f.x * 0.5 + (walking ? 0.5 : 0), kneeY = hip + 3;
+          ctx.lineWidth = 1.6; ctx.strokeStyle = dark ? tint(legC === lk.skin ? lk.bottom : legC, -0.25) : (legC === lk.skin ? lk.bottom : legC);
+          ctx.beginPath(); ctx.moveTo(0, hip); ctx.lineTo(kneeX, kneeY); ctx.stroke();
+          ctx.strokeStyle = dark ? tint(legC, -0.25) : legC; ctx.beginPath(); ctx.moveTo(kneeX, kneeY); ctx.lineTo(f.x, f.y - 0.4); ctx.stroke();
+          ctx.fillStyle = shoe; ctx.beginPath(); ctx.ellipse(f.x + 0.5, f.y - 0.3, 1.1, 0.55, 0, 0, Math.PI * 2); ctx.fill();
+        }
+      } else {
+        const spread = swingLike && act !== 'putt' ? 1.9 : act === 'putt' ? 1.4 : act === 'bend' ? 1.5 : 1.05;
+        for (const sgn of [-1, 1]) {
+          const up = walking ? Math.max(0, Math.sin(ph + (sgn > 0 ? Math.PI : 0))) * 1.2 : 0;
+          // in the finish of a swing the back (right) foot rolls onto its toe
+          const toe = act === 'swing' && sgn < 0 && k > 0.62 ? Math.min(1, (k - 0.62) / 0.15) * 0.9 : 0;
+          const fx = sgn * spread + (toe ? 0.9 : 0), fy = -up - toe;
+          const hx = sgn * 1.05 + hipX, kx = (hx + fx) / 2 + (toe ? 0.5 : 0), ky = hip + 2.9 - up * 0.5;
+          ctx.lineWidth = 1.75; ctx.strokeStyle = lk.legs === 'trousers' ? lk.bottom : lk.bottom;
+          ctx.beginPath(); ctx.moveTo(hx, hip); ctx.lineTo(kx, ky); ctx.stroke();
+          ctx.strokeStyle = legC; ctx.beginPath(); ctx.moveTo(kx, ky); ctx.lineTo(fx, fy - 0.5); ctx.stroke();
+          ctx.fillStyle = shoe; ctx.beginPath(); ctx.ellipse(fx, fy - 0.35, 0.95, 0.6, 0, 0, Math.PI * 2); ctx.fill();
+        }
+      }
+      if (lk.legs === 'skirt') { ctx.fillStyle = lk.bottom; ctx.beginPath(); ctx.moveTo(-w / 2 + 0.3 + hipX, hip - 0.6); ctx.lineTo(w / 2 - 0.3 + hipX, hip - 0.6); ctx.lineTo(w / 2 + 0.6 + hipX, hip + 2.6); ctx.lineTo(-w / 2 - 0.6 + hipX, hip + 2.6); ctx.fill(); }
+      else if (lk.legs === 'shorts' && !side) { ctx.fillStyle = lk.bottom; ctx.fillRect(-w / 2 + 0.2 + hipX, hip - 0.6, w - 0.4, 2.4); }
+    } else {
+      // seated: knees forward, feet tucked
+      ctx.fillStyle = lk.bottom; ctx.fillRect(-w / 2 + 0.2, -3.6 + bob - 2.4, w - 0.4, 2.2);
+      ctx.fillStyle = shoe; ctx.fillRect(-1.9, -0.9 + bob - 2.4, 1.4, 0.9); ctx.fillRect(0.5, -0.9 + bob - 2.4, 1.4, 0.9);
+    }
+    // ---- body ----
+    if (club && club.behind) drawClub();
+    ctx.fillStyle = lk.shirt;
+    ctx.beginPath(); ctx.roundRect(tx - tw / 2, top, tw, waist - top + 0.4, [1.6, 1.6, 0.8, 0.8]); ctx.fill();
+    if (fine) {
+      ctx.fillStyle = 'rgba(0,0,0,0.13)'; ctx.fillRect(tx + tw / 2 - tw * 0.32, top + 0.6, tw * 0.32, waist - top - 0.2);
+      if (lk.vest) { ctx.fillStyle = lk.vest; ctx.fillRect(tx - tw / 2 + 0.3, top + 1, tw - 0.6, waist - top - 1.4); if (lk.vest === '#ff8a3d' || lk.vest === '#d8f24a') { ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.fillRect(tx - tw / 2 + 0.3, top + 3.6, tw - 0.6, 0.5); } }
+      if (lk.apron && !side) { ctx.fillStyle = lk.apron; ctx.fillRect(tx - tw / 2 + 0.6, top + 3.2, tw - 1.2, waist - top - 1.4); }
+      if (!side && dir === 'S' && !lk.vest) { ctx.fillStyle = tint(lk.shirt === '#ffffff' ? '#dddddd' : lk.shirt, -0.25); ctx.beginPath(); ctx.moveTo(tx - 1.1, top + 0.1); ctx.lineTo(tx, top + 1.4); ctx.lineTo(tx + 1.1, top + 0.1); ctx.fill(); }
+      if (lk.legs !== 'skirt') { ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillRect(tx - tw / 2 + 0.2, waist - 0.5, tw - 0.4, 0.55); }
+    }
+    if (bag && dir === 'N') drawBag();
+    if (act === 'sit' && p.face === 'N') { ctx.fillStyle = '#6b4f30'; ctx.beginPath(); ctx.roundRect(-3.4, waist - 3.8, 6.8, 4.6, 1.2); ctx.fill(); }
+    // ---- arms ----
+    const sl = lk.shirt, sk = lk.skin, shY = top + 1.1;
+    let hands = null;
+    if (sw) {
+      // both hands on the grip, going round the chest
+      const H = club.H;
+      limb(tx - tw / 2 + 0.4, shY, H.x - 0.3, H.y, 1.25, sl, sk, 0.38);
+      limb(tx + tw / 2 - 0.4, shY, H.x + 0.3, H.y, 1.25, sl, sk, 0.38);
+      if (!club.behind) drawClub();
+      ctx.fillStyle = sk; ctx.beginPath(); ctx.arc(H.x, H.y, 0.75, 0, Math.PI * 2); ctx.fill();
+      // a swoosh through the hitting zone
+      if (act === 'swing' && k > 0.56 && k < 0.72 && fine) { ctx.strokeStyle = 'rgba(255,255,255,0.45)'; ctx.lineWidth = 0.8; ctx.beginPath(); ctx.arc(tx, top + 2.4, 13, Math.PI * 0.42, Math.PI * 0.85); ctx.stroke(); }
+    } else if (act === 'cheer') {
+      const up = Math.min(1, k * 5);
+      limb(tx - tw / 2 + 0.3, shY, tx - 3.6, shY - 4.8 * up + 2 * (1 - up), 1.3, sl, sk, 0.4);
+      limb(tx + tw / 2 - 0.3, shY, tx + 3.6, shY - 4.8 * up + 2 * (1 - up), 1.3, sl, sk, 0.4);
+      hands = [{ x: tx - 3.6, y: shY - 4.8 * up + 2 * (1 - up) }, { x: tx + 3.6, y: shY - 4.8 * up + 2 * (1 - up) }];
+      // club held up high in the right hand
+      if (p.club !== false) { ctx.lineWidth = 0.55; ctx.strokeStyle = '#d5dce2'; ctx.beginPath(); ctx.moveTo(hands[1].x, hands[1].y); ctx.lineTo(hands[1].x + 2.4, hands[1].y - 6.5); ctx.stroke(); }
+    } else if (act === 'slump') {
+      // hands on the head
+      limb(tx - tw / 2 + 0.3, shY, tx - 2.1, top - 3.2, 1.3, sl, sk, 0.45);
+      limb(tx + tw / 2 - 0.3, shY, tx + 2.1, top - 3.2, 1.3, sl, sk, 0.45);
+    } else if (act === 'sit' || act === 'work') {
+      const wv = act === 'work' ? Math.sin(k * Math.PI * 2) * 0.8 : 0;
+      limb(tx - tw / 2 + 0.3, shY, tx - 1.6, waist - 1 + wv, 1.25, sl, sk, 0.45);
+      limb(tx + tw / 2 - 0.3, shY, tx + 1.6, waist - 1 - wv, 1.25, sl, sk, 0.45);
+    } else if (act === 'wave') {
+      limb(tx - tw / 2 + 0.3, shY, tx - w / 2 - 0.5, waist + 0.3, 1.25, sl, sk, 0.45);
+      const a = Math.sin(k * Math.PI * 6) * 0.4;
+      limb(tx + tw / 2 - 0.3, shY, tx + 3 + Math.sin(a) * 2, shY - 4.4, 1.25, sl, sk, 0.45);
+    } else if (side) {
+      const a = trolley ? -0.25 : walking ? -step * 0.6 : 0, hx = Math.sin(a) * 4.6, hy = shY + Math.cos(a) * 4.6;
+      limb(0, shY, hx, hy, 1.35, sl, sk, 0.42);
+      hands = [{ x: hx, y: hy }];
+    } else {
+      const a = walking ? step * 0.7 : 0;
+      for (const sgn of [-1, 1]) {
+        const hx = tx + sgn * (tw / 2 + 0.35), hy = waist + 0.4 + (walking ? sgn * a * 0.6 : 0) - (act === 'bend' ? 0 : 0);
+        limb(tx + sgn * (tw / 2 - 0.3), shY, hx, hy, 1.3, sl, sk, 0.42);
+      }
+      hands = [{ x: tx - tw / 2 - 0.35, y: waist + 0.4 }, { x: tx + tw / 2 + 0.35, y: waist + 0.4 }];
+    }
+    if (lk.band && !sw) { ctx.fillStyle = lk.band; ctx.fillRect(side ? -0.8 : tx - tw / 2 - 0.4, shY + 1.4, side ? 1.6 : 1.4, 0.9); }
+    // things in hand
+    const hand = hands && hands[hands.length - 1];
+    if (hand && p.carry === 'bucket') {
+      ctx.fillStyle = '#e8432e'; ctx.beginPath(); ctx.moveTo(hand.x - 1.4, hand.y + 0.4); ctx.lineTo(hand.x + 1.4, hand.y + 0.4); ctx.lineTo(hand.x + 1.1, hand.y + 3); ctx.lineTo(hand.x - 1.1, hand.y + 3); ctx.fill();
+      ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.ellipse(hand.x, hand.y + 0.4, 1.3, 0.5, 0, 0, Math.PI * 2); ctx.fill();
+    } else if (hand && p.carry === 'basket') {
+      ctx.strokeStyle = '#9aa4ad'; ctx.lineWidth = 0.4; ctx.strokeRect(hand.x - 1.6, hand.y, 3.2, 2.8);
+      const lf = p.load || 0; ctx.fillStyle = '#ffffff'; ctx.fillRect(hand.x - 1.4, hand.y + 2.7 - 2.5 * lf, 2.8, 2.5 * lf);
+      // the ball tube in the other hand, tapping the turf while they pick
+      if (hands[0] && !side) { const tap = act === 'bend' ? Math.abs(Math.sin(k * Math.PI * 4)) * 1.2 : 0; ctx.strokeStyle = '#d5dce2'; ctx.lineWidth = 0.7; ctx.beginPath(); ctx.moveTo(hands[0].x, hands[0].y - 1); ctx.lineTo(hands[0].x - 1.6, hands[0].y + 5.2 - tap); ctx.stroke(); }
+    }
+    // ---- head ----
+    const lookX = sw ? (act === 'swing' && k > 0.66 ? Math.min(1, (k - 0.66) / 0.12) * 0.8 : 0) : (p.look || 0);
+    const hx = tx + lookX * 0.4, hy = top - 2.25 + (act === 'slump' ? 0.5 : 0) + (sw && act !== 'swing' ? 0.3 : 0);
+    ctx.fillStyle = sk; ctx.fillRect(hx - 0.7, top - 0.9, 1.4, 1.2);
+    ctx.beginPath(); ctx.arc(hx, hy, 2.15, 0, Math.PI * 2); ctx.fill();
+    const hair = lk.hair, hs = lk.style;
+    ctx.fillStyle = hair;
+    if (dir === 'N') {
+      if (hs !== 'bald') { ctx.beginPath(); ctx.arc(hx, hy, 2.25, 0, Math.PI * 2); ctx.fill(); }
+      else { ctx.beginPath(); ctx.arc(hx, hy + 0.5, 2.2, 0.15, Math.PI - 0.15); ctx.fill(); }
+      if (hs === 'long') ctx.fillRect(hx - 2.1, hy, 4.2, 3.4);
+      if (hs === 'pony') { ctx.beginPath(); ctx.ellipse(hx, hy + 2.6, 0.9, 1.5, 0, 0, Math.PI * 2); ctx.fill(); }
+    } else if (side) {
+      if (hs !== 'bald') { ctx.beginPath(); ctx.arc(hx - 0.25, hy - 0.2, 2.25, Math.PI * 0.62, Math.PI * 1.98); ctx.fill(); }
+      if (hs === 'long') ctx.fillRect(hx - 2.2, hy - 0.4, 1.9, 3.6);
+      if (hs === 'pony') { ctx.beginPath(); ctx.ellipse(hx - 2.4, hy + 0.6, 0.8, 1.6, 0.4, 0, Math.PI * 2); ctx.fill(); }
+      ctx.fillStyle = sk; ctx.beginPath(); ctx.arc(hx + 2.05, hy + 0.3, 0.5, 0, Math.PI * 2); ctx.fill();   // nose
+      if (fine) { ctx.fillStyle = '#2b2118'; ctx.fillRect(hx + 0.95, hy - 0.25, 0.5, 0.55); }
+    } else {
+      if (hs !== 'bald') {
+        ctx.beginPath(); ctx.arc(hx, hy - 0.1, 2.25, Math.PI * 1.02, Math.PI * 1.98); ctx.fill();
+        if (hs === 'side') { ctx.beginPath(); ctx.ellipse(hx - 0.7, hy - 1.1, 1.6, 0.8, 0.3, 0, Math.PI * 2); ctx.fill(); }
+        if (hs === 'curly') for (const a of [-2.6, -1.9, -1.2, -0.5]) { ctx.beginPath(); ctx.arc(hx + Math.cos(a) * 1.9, hy - 0.2 + Math.sin(a) * 1.9, 0.8, 0, Math.PI * 2); ctx.fill(); }
+        if (hs === 'long') { ctx.fillRect(hx - 2.3, hy - 0.6, 1, 3.6); ctx.fillRect(hx + 1.3, hy - 0.6, 1, 3.6); }
+      } else { ctx.fillRect(hx - 2.2, hy - 0.2, 0.6, 1.2); ctx.fillRect(hx + 1.6, hy - 0.2, 0.6, 1.2); }
+      if (fine) {
+        const ex = lookX * 0.5;
+        ctx.fillStyle = '#2b2118'; ctx.fillRect(hx - 1.05 + ex, hy + 0.05, 0.55, 0.6); ctx.fillRect(hx + 0.5 + ex, hy + 0.05, 0.55, 0.6);
+        if (act === 'cheer') { ctx.fillStyle = '#7a2f22'; ctx.beginPath(); ctx.arc(hx + ex, hy + 1.2, 0.6, 0, Math.PI); ctx.fill(); }
+      }
+    }
+    // hats
+    const hat = lk.hat;
+    if (hat === 'chef') { ctx.fillStyle = '#ffffff'; ctx.fillRect(hx - 1.7, hy - 3.6, 3.4, 2.2); ctx.beginPath(); ctx.arc(hx - 0.9, hy - 3.9, 1.2, 0, Math.PI * 2); ctx.arc(hx + 0.9, hy - 3.9, 1.2, 0, Math.PI * 2); ctx.fill(); }
+    else if (hat === 'cap' || hat === 'visor') {
+      ctx.fillStyle = lk.hatC;
+      if (hat === 'cap') { ctx.beginPath(); ctx.arc(hx, hy - 0.35, 2.3, Math.PI * 1.0, Math.PI * 2); ctx.fill(); }
+      else ctx.fillRect(hx - 2.2, hy - 1.3, 4.4, 0.8);
+      ctx.fillStyle = tint(lk.hatC, -0.18);
+      if (side) ctx.fillRect(hx + 0.6, hy - 0.75, 2.9, 0.75);
+      else if (dir === 'S') { ctx.beginPath(); ctx.ellipse(hx, hy - 0.45, 2.5, 0.75, 0, 0, Math.PI); ctx.fill(); }
+      else if (hat === 'cap') { ctx.fillStyle = tint(lk.hatC, -0.3); ctx.fillRect(hx - 0.6, hy - 0.4, 1.2, 0.5); }
+    } else if (hat === 'bucket') {
+      ctx.fillStyle = lk.hatC; ctx.beginPath(); ctx.arc(hx, hy - 0.6, 2.1, Math.PI, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = tint(lk.hatC, -0.15); ctx.beginPath(); ctx.ellipse(hx, hy - 0.5, 3.2, 0.85, 0, 0, Math.PI * 2); ctx.fill();
+    }
+    // an umbrella in the rain
+    if (p.umbrella) {
+      const ux = hx + 0.6, uy = hy - 4.6 - (walking ? lift * 0.3 : 0);
+      ctx.strokeStyle = '#3a3f45'; ctx.lineWidth = 0.4; ctx.beginPath(); ctx.moveTo(ux, uy); ctx.lineTo(hx + 2.6, waist - 1.5); ctx.stroke();
+      ctx.fillStyle = lk.umb; ctx.beginPath(); ctx.ellipse(ux, uy, 6.2, 2.7, 0, Math.PI, Math.PI * 2); ctx.lineTo(ux + 6.2, uy); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.25)'; ctx.beginPath(); ctx.ellipse(ux - 1.6, uy - 1.3, 2.2, 0.8, -0.2, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = tint(lk.umb === '#ffffff' ? '#e0e0e0' : lk.umb, -0.25);
+      for (let j = -3; j <= 3; j += 2) { ctx.beginPath(); ctx.arc(ux + j * 1.55, uy, 0.95, 0, Math.PI); ctx.fill(); }
+    }
+    ctx.restore();
+  }
+
+  // ---- seen from above: a person sitting in a vehicle ----
+  function drawRiderTop(x, y, lk, steer) {
+    ctx.fillStyle = lk.shirt; ctx.beginPath(); ctx.ellipse(x - 0.6, y, 1.7, 2.4, 0, 0, Math.PI * 2); ctx.fill();
+    if (lk.vest) { ctx.fillStyle = lk.vest; ctx.beginPath(); ctx.ellipse(x - 0.6, y, 1.3, 2.0, 0, 0, Math.PI * 2); ctx.fill(); }
+    if (steer) { ctx.strokeStyle = lk.skin; ctx.lineWidth = 0.7; ctx.beginPath(); ctx.moveTo(x, y - 1.6); ctx.lineTo(steer.x, steer.y - 0.7); ctx.moveTo(x, y + 1.6); ctx.lineTo(steer.x, steer.y + 0.7); ctx.stroke(); }
+    ctx.fillStyle = lk.skin; ctx.beginPath(); ctx.arc(x + 0.25, y, 1.45, 0, Math.PI * 2); ctx.fill();
+    if (lk.hat === 'cap' || lk.hat === 'visor' || lk.hat === 'bucket') {
+      ctx.fillStyle = lk.hatC; if (lk.hat !== 'visor') { ctx.beginPath(); ctx.arc(x + 0.1, y, 1.45, 0, Math.PI * 2); ctx.fill(); }
+      ctx.fillStyle = tint(lk.hatC, -0.2); ctx.beginPath(); ctx.ellipse(x + 1.5, y, 0.8, 1.2, 0, -Math.PI / 2, Math.PI / 2); ctx.fill();
+    } else if (lk.style !== 'bald') { ctx.fillStyle = lk.hair; ctx.beginPath(); ctx.arc(x - 0.05, y, 1.4, Math.PI * 0.6, Math.PI * 1.4); ctx.arc(x + 0.1, y, 1.3, Math.PI * 1.4, Math.PI * 0.6); ctx.fill(); }
+  }
+  const wheel = (x, y, l, w, moving, t) => {
+    ctx.fillStyle = '#1d2023'; ctx.beginPath(); ctx.roundRect(x - l / 2, y - w / 2, l, w, w / 2); ctx.fill();
+    if (moving) { ctx.fillStyle = 'rgba(255,255,255,0.18)'; const o = (t * 26) % 2; for (let k = -l / 2 + o; k < l / 2; k += 2) ctx.fillRect(x + k, y - w / 2, 0.5, w); }
+  };
+  // ---- golf cart: open two-seater, bags strapped on the back. A marshal's cart has a roof and a beacon ----
+  function drawGolfCart(x, y, ang, o) {
+    const t = o.t || 0, moving = !!o.moving, bob = moving ? Math.sin(t * 21 + (o.seed || 0)) * 0.18 : 0;
+    ctx.save(); ctx.translate(x, y + bob); ctx.rotate(ang); ctx.scale(o.scale || 1, o.scale || 1);
+    ctx.fillStyle = 'rgba(0,0,0,0.28)'; ctx.beginPath(); ctx.roundRect(-7.2, -3.6, 17, 10.6, 3); ctx.fill();
+    for (const [wx, wy] of [[-5, -5.5], [-5, 5.5], [5, -5.3], [5, 5.3]]) wheel(wx, wy, 3.4, 1.5, moving, t);
+    const body = o.body || '#f4f2ea';
+    ctx.fillStyle = body; ctx.beginPath(); ctx.roundRect(-8.5, -5.3, 17, 10.6, [2, 4, 4, 2]); ctx.fill();
+    ctx.fillStyle = 'rgba(0,0,0,0.1)'; ctx.fillRect(-8.5, 2.6, 17, 2.4);
+    ctx.fillStyle = tint(body, 0.4); ctx.beginPath(); ctx.roundRect(4.4, -4.4, 3.8, 8.8, [0, 3, 3, 0]); ctx.fill();   // bonnet
+    ctx.fillStyle = '#fff6c8'; ctx.fillRect(7.6, -4, 0.9, 1.4); ctx.fillRect(7.6, 2.6, 0.9, 1.4);
+    if (o.stripe) { ctx.fillStyle = o.stripe; ctx.fillRect(-8.5, -5.3, 17, 1.2); ctx.fillRect(-8.5, 4.1, 17, 1.2); }
+    ctx.fillStyle = '#2b2f36'; ctx.fillRect(3.2, -4.6, 1.1, 9.2);                                   // dashboard
+    ctx.fillStyle = 'rgba(160,200,225,0.75)'; ctx.fillRect(3.9, -4.4, 0.5, 8.8);                    // windscreen
+    ctx.fillStyle = '#3a3f45'; ctx.beginPath(); ctx.roundRect(-3.6, -4.6, 4.4, 9.2, 1.2); ctx.fill(); // bench seat
+    ctx.fillStyle = '#2b2f36'; ctx.fillRect(-3.9, -4.6, 1, 9.2);
+    // bags on the back, clubs poking out
+    (o.bags || []).forEach((c, k) => {
+      const by = k ? 2.3 : -2.3, bx = -6.6;
+      ctx.fillStyle = c; ctx.beginPath(); ctx.arc(bx, by, 1.9, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#1d2023'; ctx.beginPath(); ctx.arc(bx, by, 1.2, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#cfd6dc'; ctx.fillRect(bx - 0.9, by - 0.6, 0.8, 0.8); ctx.fillRect(bx + 0.1, by - 0.2, 0.8, 0.8); ctx.fillRect(bx - 0.5, by + 0.4, 0.8, 0.8);
+    });
+    // driver on the left, a passenger on the right
+    const steer = { x: 2.6, y: -2.4 };
+    if (!o.roof) { ctx.strokeStyle = '#1d2023'; ctx.lineWidth = 0.6; ctx.beginPath(); ctx.arc(steer.x, steer.y, 1.1, 0, Math.PI * 2); ctx.stroke(); }
+    (o.riders || []).forEach((lk, k) => drawRiderTop(-1.3, k ? 2.3 : -2.4, lk, k ? null : steer));
+    if (o.roof) {
+      ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.fillRect(-4.8, -4.6, 9.2, 10.2);
+      ctx.fillStyle = o.roof; ctx.beginPath(); ctx.roundRect(-5.4, -5.6, 9.6, 11.2, 1.6); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.fillRect(-5, -5.2, 8.8, 1.2);
+      if (o.stripe) { ctx.fillStyle = o.stripe; ctx.fillRect(-5.4, -0.7, 9.6, 1.4); }
+      if (o.beacon) {
+        const on = Math.sin(t * 9 + (o.seed || 0)) > 0;
+        ctx.fillStyle = on ? '#ffb31a' : '#a26a00'; ctx.beginPath(); ctx.arc(-0.6, 0, 1.4, 0, Math.PI * 2); ctx.fill();
+        if (on) { ctx.fillStyle = 'rgba(255,190,40,0.28)'; ctx.beginPath(); ctx.arc(-0.6, 0, 5, 0, Math.PI * 2); ctx.fill(); }
+      }
+    }
+    ctx.restore();
+  }
+  // ---- range picker: a little tractor in a ball cage, towing a gang of picker reels ----
+  function drawPickerCart(x, y, ang, o) {
+    const t = o.t || 0, moving = !!o.moving, spin = o.collect ? t * 10 : 0;
+    ctx.save(); ctx.translate(x, y); ctx.rotate(ang); ctx.scale(1.15, 1.15);
+    ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(-19, -6, 30, 13);
+    // the gang: three staggered rows of reels on a frame
+    ctx.fillStyle = '#6c757d'; ctx.fillRect(-18.5, -7.5, 9, 15); ctx.fillStyle = '#4a5157'; ctx.fillRect(-9.5, -0.6, 3.2, 1.2);
+    for (let r = 0; r < 3; r++) for (let c = 0; c < 4; c++) {
+      const rx = -16.8 + r * 3, ry = -6 + c * 4 + (r % 2) * 2 - 1;
+      if (ry > 6.5) continue;
+      ctx.fillStyle = '#c3cbd1'; ctx.beginPath(); ctx.arc(rx, ry, 1.35, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#59626a'; ctx.lineWidth = 0.4; ctx.beginPath(); ctx.moveTo(rx + Math.cos(spin + c) * 1.2, ry + Math.sin(spin + c) * 1.2); ctx.lineTo(rx - Math.cos(spin + c) * 1.2, ry - Math.sin(spin + c) * 1.2); ctx.stroke();
+      if (o.collect && (r + c + Math.floor(t * 6)) % 3 === 0) { ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(rx + 0.4, ry, 0.5, 0, Math.PI * 2); ctx.fill(); }
+    }
+    // tractor
+    wheel(-3.6, -5.1, 4.6, 2.1, moving, t); wheel(-3.6, 5.1, 4.6, 2.1, moving, t); wheel(5, -4.3, 2.8, 1.4, moving, t); wheel(5, 4.3, 2.8, 1.4, moving, t);
+    ctx.fillStyle = '#c8402a'; ctx.beginPath(); ctx.roundRect(-6.2, -4, 13.5, 8, 2); ctx.fill();
+    ctx.fillStyle = '#e25a3f'; ctx.beginPath(); ctx.roundRect(1.6, -2.8, 5.8, 5.6, [0, 2, 2, 0]); ctx.fill();
+    ctx.fillStyle = '#2b2f36'; for (let k = -2; k <= 2; k += 1.3) ctx.fillRect(6.6, k - 0.25, 0.9, 0.5);
+    // load of balls in the hopper
+    const lf = Math.max(0, Math.min(1, o.load || 0)); ctx.fillStyle = '#5b6168'; ctx.fillRect(-6, -3.4, 2.6, 6.8);
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(-5.8, 3.2 - 6.4 * lf, 2.2, 6.4 * lf);
+    drawRiderTop(-1.4, 0, o.look, { x: 0.8, y: 0 });
+    // the safety cage over the driver
+    ctx.strokeStyle = 'rgba(225,230,235,0.9)'; ctx.lineWidth = 0.35; ctx.strokeRect(-3.4, -3.6, 5, 7.2);
+    for (let k = -2.6; k < 1.6; k += 1.2) { ctx.beginPath(); ctx.moveTo(k, -3.6); ctx.lineTo(k, 3.6); ctx.stroke(); }
+    for (let k = -2.4; k < 3.6; k += 1.2) { ctx.beginPath(); ctx.moveTo(-3.4, k); ctx.lineTo(1.6, k); ctx.stroke(); }
+    ctx.restore();
+  }
+  // ---- greenkeeper's ride-on mower with a cutting deck in front ----
+  const clippings = [];
+  function drawMower(x, y, ang, o) {
+    const t = o.t || 0, mowing = !!o.mowing, moving = !!o.moving;
+    ctx.save(); ctx.translate(x, y); ctx.rotate(ang);
+    ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(-6, -6.5, 20, 14);
+    // deck with three spinning cutters
+    ctx.fillStyle = '#8d949a'; ctx.beginPath(); ctx.roundRect(5.4, -8, 6.4, 16, 2.4); ctx.fill();
+    ctx.fillStyle = '#6c737a'; ctx.fillRect(5.4, -0.4, 6.4, 0.8);
+    for (const cy of [-4.9, 0, 4.9]) {
+      ctx.strokeStyle = '#4a5157'; ctx.lineWidth = 0.5; ctx.beginPath(); ctx.arc(8.6, cy, 2.1, 0, Math.PI * 2); ctx.stroke();
+      if (mowing) { const a = t * 30 + cy; ctx.beginPath(); ctx.moveTo(8.6 + Math.cos(a) * 1.9, cy + Math.sin(a) * 1.9); ctx.lineTo(8.6 - Math.cos(a) * 1.9, cy - Math.sin(a) * 1.9); ctx.stroke(); }
+    }
+    wheel(-3.4, -5.6, 4.8, 2.2, moving, t); wheel(-3.4, 5.6, 4.8, 2.2, moving, t); wheel(3.6, -4.6, 2.6, 1.4, moving, t); wheel(3.6, 4.6, 2.6, 1.4, moving, t);
+    ctx.fillStyle = '#2f7d45'; ctx.beginPath(); ctx.roundRect(-6, -4.6, 11.4, 9.2, 2.4); ctx.fill();
+    ctx.fillStyle = '#f2c14e'; ctx.fillRect(-6, -4.6, 11.4, 1); ctx.fillRect(-6, 3.6, 11.4, 1);
+    ctx.fillStyle = '#3a8a52'; ctx.beginPath(); ctx.roundRect(0.8, -3, 4.6, 6, [0, 2, 2, 0]); ctx.fill();
+    ctx.fillStyle = '#2b2f36'; ctx.beginPath(); ctx.roundRect(-5, -2.6, 3.6, 5.2, 1); ctx.fill();
+    ctx.strokeStyle = '#1d2023'; ctx.lineWidth = 0.6; ctx.beginPath(); ctx.arc(0.4, 0, 1.2, 0, Math.PI * 2); ctx.stroke();
+    drawRiderTop(-2.6, 0, o.look, { x: 0.4, y: 0 });
+    ctx.restore();
+    // grass clippings thrown out of the side chute
+    if (mowing && o.dt > 0 && clippings.length < 160 && Math.random() < 0.9) {
+      const c = Math.cos(ang), sn = Math.sin(ang), sx = x + c * 8.6 - sn * 8.5, sy = y + sn * 8.6 + c * 8.5;
+      for (let k = 0; k < 2; k++) clippings.push({ x: sx, y: sy, vx: -sn * rnd(18, 34) + c * rnd(-6, 6), vy: c * rnd(18, 34) + sn * rnd(-6, 6), life: rnd(0.35, 0.7), c: Math.random() < 0.5 ? '#8fd98a' : '#5cbd77' });
+    }
+  }
+  function drawClippings(dt) {
+    for (const p of clippings) { p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 0.9; p.vy *= 0.9; p.life -= dt; ctx.globalAlpha = Math.max(0, Math.min(1, p.life * 2.2)); ctx.fillStyle = p.c; ctx.fillRect(p.x - 0.6, p.y - 0.6, 1.2, 1.2); }
+    ctx.globalAlpha = 1;
+    for (let i = clippings.length - 1; i >= 0; i--) if (clippings[i].life <= 0) clippings.splice(i, 1);
+  }
+
+  // ---- cars: hatchbacks, saloons, estates, SUVs and vans, seen from above ----
+  const CAR_KINDS = [{ k: 'hatch', l: 21, w: 11.4 }, { k: 'saloon', l: 24, w: 11.8 }, { k: 'saloon', l: 24, w: 11.8 }, { k: 'estate', l: 25, w: 12 }, { k: 'suv', l: 25.5, w: 13 }, { k: 'van', l: 27, w: 13 }];
+  function drawCarSprite(v, t) {
+    const K = v.kind || (v.kind = CAR_KINDS[Math.floor(Math.random() * CAR_KINDS.length)]), L = K.l, W = K.w, c = v.color;
     ctx.save(); ctx.translate(v.x, v.y); ctx.rotate(v.ang);
-    ctx.fillStyle = 'rgba(0,0,0,0.32)'; ctx.fillRect(-10, -4.5, 24, 13);
-    ctx.fillStyle = v.color; ctx.fillRect(-12, -6.5, 24, 13);
-    ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.fillRect(-12, 4.5, 24, 2);
-    ctx.fillStyle = 'rgba(150,190,220,0.9)'; ctx.fillRect(3, -5, 4, 10); ctx.fillRect(-9, -5, 3, 10);
-    ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.fillRect(-6, -5, 9, 10);
-    ctx.fillStyle = '#fff6c8'; ctx.fillRect(11, -5.5, 1.5, 3); ctx.fillRect(11, 2.5, 1.5, 3);
-    ctx.fillStyle = '#b8322a'; ctx.fillRect(-12.5, -5.5, 1.2, 2.5); ctx.fillRect(-12.5, 3, 1.2, 2.5);
-    // driver's door swings open while someone gets in or out
+    ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.roundRect(-L / 2 + 2, -W / 2 + 2.2, L, W, 4); ctx.fill();
+    ctx.fillStyle = '#1d2023'; for (const [wx, wy] of [[L * 0.3, -1], [L * 0.3, 1], [-L * 0.3, -1], [-L * 0.3, 1]]) ctx.fillRect(wx - 2.2, wy * (W / 2 + 0.2) - 0.8, 4.4, 1.6);
+    ctx.fillStyle = c; ctx.beginPath(); ctx.roundRect(-L / 2, -W / 2, L, W, K.k === 'van' ? 2.5 : 4); ctx.fill();
+    ctx.fillStyle = 'rgba(0,0,0,0.14)'; ctx.fillRect(-L / 2 + 1, W / 2 - 2, L - 2, 1.6);
+    ctx.fillStyle = 'rgba(255,255,255,0.16)'; ctx.fillRect(-L / 2 + 1.5, -W / 2 + 0.6, L - 3, 1.1);
+    // glass: windscreen, roof, rear window, side windows
+    const glass = '#a9c9dc', g2 = '#7fa3ba';
+    const fx = K.k === 'van' ? L * 0.26 : L * 0.1, fw = K.k === 'van' ? L * 0.12 : L * 0.16;
+    ctx.fillStyle = glass; ctx.beginPath(); ctx.moveTo(fx, -W / 2 + 1.4); ctx.lineTo(fx + fw, -W / 2 + 2.3); ctx.lineTo(fx + fw, W / 2 - 2.3); ctx.lineTo(fx, W / 2 - 1.4); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.45)'; ctx.beginPath(); ctx.moveTo(fx + 0.6, -W / 2 + 2.2); ctx.lineTo(fx + fw * 0.6, -W / 2 + 2.6); ctx.lineTo(fx + 0.6, -W / 2 + 4.2); ctx.fill();
+    const rx0 = K.k === 'hatch' ? -L * 0.42 : K.k === 'van' ? -L / 2 + 1.2 : -L * 0.3, rx1 = fx;
+    ctx.fillStyle = g2; ctx.fillRect(rx0, -W / 2 + 1.0, rx1 - rx0, 0.9); ctx.fillRect(rx0, W / 2 - 1.9, rx1 - rx0, 0.9);
+    ctx.fillStyle = tint(c, c === '#f5f5f0' || c === '#b9bec4' ? -0.08 : 0.08); ctx.beginPath(); ctx.roundRect(rx0 + 0.6, -W / 2 + 2.0, rx1 - rx0 - 0.8, W - 4, 1.8); ctx.fill();   // roof
+    if (K.k === 'suv' || K.k === 'estate') { ctx.fillStyle = 'rgba(30,30,30,0.5)'; ctx.fillRect(rx0 + 1.5, -W / 2 + 2.6, rx1 - rx0 - 3, 0.5); ctx.fillRect(rx0 + 1.5, W / 2 - 3.1, rx1 - rx0 - 3, 0.5); }
+    if (K.k !== 'van') { ctx.fillStyle = glass; ctx.beginPath(); ctx.moveTo(rx0, -W / 2 + 2.1); ctx.lineTo(rx0 - (K.k === 'hatch' ? 1.4 : 2.6), -W / 2 + 2.6); ctx.lineTo(rx0 - (K.k === 'hatch' ? 1.4 : 2.6), W / 2 - 2.6); ctx.lineTo(rx0, W / 2 - 2.1); ctx.fill(); }
+    ctx.fillStyle = c; ctx.fillRect(fx + 1.2, -W / 2 - 0.9, 1.3, 1); ctx.fillRect(fx + 1.2, W / 2 - 0.1, 1.3, 1);   // mirrors
+    ctx.fillStyle = '#fff6c8'; ctx.fillRect(L / 2 - 1.2, -W / 2 + 1, 1.2, 2.4); ctx.fillRect(L / 2 - 1.2, W / 2 - 3.4, 1.2, 2.4);
+    const brake = v.state === 'in' && v.pi >= v.path.length - 1 || v.state === 'out' && v.pi <= 1;
+    ctx.fillStyle = brake ? '#ff3b2f' : '#a8261f'; ctx.fillRect(-L / 2, -W / 2 + 1, 1.1, 2.4); ctx.fillRect(-L / 2, W / 2 - 3.4, 1.1, 2.4);
+    if (brake) { ctx.fillStyle = 'rgba(255,60,40,0.3)'; ctx.beginPath(); ctx.arc(-L / 2 - 1, -W / 2 + 2.2, 2.4, 0, Math.PI * 2); ctx.arc(-L / 2 - 1, W / 2 - 2.2, 2.4, 0, Math.PI * 2); ctx.fill(); }
+    // indicator while turning off the road into the car park
+    const turning = v.state === 'in' && v.pi >= 1 && v.pi <= 2 || v.state === 'out' && v.pi >= v.path.length - 3 && v.pi <= v.path.length - 2;
+    if (turning && Math.sin(t * 9) > 0) { ctx.fillStyle = '#ffb31a'; const sd = v.state === 'in' ? (v.path[0].x < 0 ? -1 : 1) : 1; const yy = sd < 0 ? -W / 2 - 0.2 : W / 2 - 0.9; ctx.fillRect(L / 2 - 2.2, yy, 1.8, 1.1); ctx.fillRect(-L / 2 + 0.4, yy, 1.8, 1.1); }
+    // the driver's door swings open while someone gets in or out
     if (v.door > 0) {
       const k = Math.min(1, v.door / 0.25) * Math.min(1, (0.7 - v.door) / 0.15 + 0.2);
-      ctx.save(); ctx.translate(3, -6.5); ctx.rotate(-1.1 * k);
-      ctx.fillStyle = v.color; ctx.fillRect(-8, -1.6, 8, 1.8); ctx.restore();
+      ctx.save(); ctx.translate(fx - 0.5, -W / 2); ctx.rotate(-1.1 * k);
+      ctx.fillStyle = c; ctx.fillRect(-7, -1.4, 7, 1.6); ctx.fillStyle = glass; ctx.fillRect(-5, -1.1, 4, 0.6); ctx.restore();
     }
-    // headlights after dark while moving
     if (daylight() < 0.5 && v.state !== 'parked') {
       ctx.globalCompositeOperation = 'lighter';
-      const g = ctx.createRadialGradient(14, 0, 1, 34, 0, 26);
-      g.addColorStop(0, 'rgba(255,240,190,0.35)'); g.addColorStop(1, 'rgba(255,240,190,0)');
-      ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(12, -5); ctx.lineTo(48, -16); ctx.lineTo(48, 16); ctx.lineTo(12, 5); ctx.fill();
+      const gr = ctx.createRadialGradient(L / 2 + 2, 0, 1, L / 2 + 22, 0, 26);
+      gr.addColorStop(0, 'rgba(255,240,190,0.35)'); gr.addColorStop(1, 'rgba(255,240,190,0)');
+      ctx.fillStyle = gr; ctx.beginPath(); ctx.moveTo(L / 2, -W / 2 + 1); ctx.lineTo(L / 2 + 36, -16); ctx.lineTo(L / 2 + 36, 16); ctx.lineTo(L / 2, W / 2 - 1); ctx.fill();
       ctx.globalCompositeOperation = 'source-over';
     }
     ctx.restore();
   }
 
-  function drawGolfer(x, y, color, swing, scale = 1.25) {
-    ctx.save(); ctx.translate(x, y); ctx.scale(scale, scale);
-    ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.beginPath(); ctx.ellipse(1.5, 4.5, 4, 1.6, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = '#2b2f36'; ctx.lineWidth = 1.6; ctx.lineCap = 'round';
-    ctx.beginPath(); ctx.moveTo(-1.2, 4); ctx.lineTo(0, 0); ctx.lineTo(1.2, 4); ctx.stroke();
-    ctx.fillStyle = color; ctx.fillRect(-2, -5, 4, 5.5);
-    ctx.fillStyle = '#f0c8a0'; ctx.beginPath(); ctx.arc(0, -7, 1.9, 0, Math.PI * 2); ctx.fill();
-    if (swing !== null) {
-      const a = -Math.PI / 2 + Math.sin(swing) * 2.2;
-      ctx.strokeStyle = '#d7dde2'; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(0, -3); ctx.lineTo(Math.cos(a) * 8, -3 + Math.sin(a) * 8); ctx.stroke();
+  // ---- wildlife: ducks on the lake, and birds that fly over now and then ----
+  function drawDucks(t) {
+    if (!vis(LAKE.x - LAKE.rx, LAKE.y - LAKE.ry, LAKE.x + LAKE.rx, LAKE.y + LAKE.ry)) return;
+    const n = season() === 'winter' ? 3 : 5, night = daylight() < 0.25;
+    for (let k = 0; k < n; k++) {
+      const sp = night ? 0.004 : 0.03 + (k % 3) * 0.008, dirn = k % 2 ? 1 : -1, a = t * sp * dirn + k * 1.7;
+      const rx = LAKE.rx * (0.35 + 0.12 * (k % 3)), ry = LAKE.ry * (0.45 + 0.1 * ((k + 1) % 3));
+      const x = LAKE.x + Math.cos(a) * rx + (k === 1 ? 6 : 0), y = LAKE.y + Math.sin(a) * ry;
+      const hd = Math.atan2(Math.cos(a) * ry * dirn, -Math.sin(a) * rx * dirn);
+      const dabble = !night && ((t * 0.13 + k * 0.37) % 1) < 0.08;
+      ctx.save(); ctx.translate(x, y); ctx.rotate(hd);
+      // wake
+      ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 0.6; ctx.beginPath(); ctx.moveTo(-3, -1.6); ctx.lineTo(-9, -4.2); ctx.moveTo(-3, 1.6); ctx.lineTo(-9, 4.2); ctx.stroke();
+      if (dabble) {
+        ctx.strokeStyle = 'rgba(255,255,255,0.45)'; ctx.beginPath(); ctx.arc(0, 0, 3 + (t * 4 % 2), 0, Math.PI * 2); ctx.stroke();
+        ctx.fillStyle = '#6b5032'; ctx.beginPath(); ctx.ellipse(-0.5, 0, 1.6, 1.2, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#f4f4f0'; ctx.fillRect(-2, -0.5, 1, 1);
+      } else {
+        const drake = k % 2 === 0;
+        ctx.fillStyle = drake ? '#8a7a66' : '#7a5c3a'; ctx.beginPath(); ctx.ellipse(0, 0, 3.2, 1.9, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = drake ? '#5a4632' : '#5e452b'; ctx.beginPath(); ctx.ellipse(-0.8, 0, 2, 1.3, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = drake ? '#1f6b3a' : '#7a5c3a'; ctx.beginPath(); ctx.arc(2.6, 0, 1.25, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#f2a33a'; ctx.fillRect(3.6, -0.45, 1.3, 0.9);
+        if (drake) { ctx.fillStyle = '#ffffff'; ctx.fillRect(1.6, -1.2, 0.4, 2.4); }
+      }
+      ctx.restore();
     }
-    ctx.restore();
   }
+  const fliers = [];
+  let flyT = 8;
+  function stepFliers(dt, t) {
+    // a flock now and then on a dry day: geese in a V, gulls or a few crows
+    flyT -= dt;
+    if (flyT <= 0 && daylight() > 0.5 && S.wx !== 'rain' && warp <= 3) {
+      flyT = rnd(18, 40);
+      const kind = Math.random() < 0.4 ? 'goose' : Math.random() < 0.5 ? 'gull' : 'crow', n = kind === 'goose' ? 5 + Math.floor(Math.random() * 5) : 2 + Math.floor(Math.random() * 3);
+      const vw = SW / cam.s, vh = SH / cam.s, fromL = Math.random() < 0.5, y0 = cam.y + vh * rnd(0.15, 0.85), ang = (fromL ? 0 : Math.PI) + rnd(-0.35, 0.35);
+      const x0 = fromL ? cam.x - 60 : cam.x + vw + 60, sp = kind === 'goose' ? 55 : kind === 'gull' ? 48 : 42;
+      for (let i = 0; i < n; i++) {
+        const row = Math.ceil(i / 2), side = i % 2 ? 1 : -1, back = kind === 'goose' ? row * 9 : rnd(0, 26), lat = kind === 'goose' ? side * row * 7 : rnd(-18, 18);
+        fliers.push({ kind, x: x0 - Math.cos(ang) * back - Math.sin(ang) * lat, y: y0 - Math.sin(ang) * back + Math.cos(ang) * lat, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, ph: Math.random() * 6, life: (vw + 200) / sp + 4, h: kind === 'goose' ? 55 : 38 });
+      }
+    }
+    for (const f of fliers) { f.x += f.vx * dt; f.y += f.vy * dt; f.life -= dt; f.ph += dt * (f.kind === 'goose' ? 7 : f.kind === 'gull' ? 5 : 9); }
+    for (let i = fliers.length - 1; i >= 0; i--) if (fliers[i].life <= 0) fliers.splice(i, 1);
+  }
+  function drawFliers() {
+    for (const f of fliers) {
+      if (!vis(f.x - 20, f.y - 80, f.x + 30, f.y + 20)) continue;
+      const flap = Math.sin(f.ph), span = f.kind === 'goose' ? 6.5 : f.kind === 'gull' ? 6 : 5;
+      // shadow on the ground, offset by the height
+      ctx.fillStyle = 'rgba(0,0,0,0.16)'; ctx.beginPath(); ctx.ellipse(f.x + f.h * 0.35, f.y, span * (0.6 + 0.4 * Math.abs(flap)), 1.2, Math.atan2(f.vy, f.vx) + Math.PI / 2, 0, Math.PI * 2); ctx.fill();
+      const x = f.x, y = f.y - f.h, col = f.kind === 'goose' ? '#5b5650' : f.kind === 'gull' ? '#f4f4f0' : '#1f2124';
+      ctx.save(); ctx.translate(x, y); ctx.rotate(Math.atan2(f.vy, f.vx));
+      ctx.strokeStyle = col; ctx.lineWidth = 1.1; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(-0.5, -span); ctx.quadraticCurveTo(1.2, -span * 0.4 + flap * 1.6, 0.6, 0); ctx.quadraticCurveTo(1.2, span * 0.4 - flap * 1.6, -0.5, span); ctx.stroke();
+      ctx.fillStyle = col; ctx.beginPath(); ctx.ellipse(0.4, 0, 2.2, 0.8, 0, 0, Math.PI * 2); ctx.fill();
+      if (f.kind === 'goose') { ctx.fillStyle = '#1f2124'; ctx.fillRect(2.2, -0.35, 1.6, 0.7); }
+      ctx.restore();
+    }
+  }
+
+  // the old one-size figure, kept as a thin wrapper for anything that still calls it
+  function drawGolfer(x, y, color, swing, scale = 1.25) { drawPerson(x, y, staffLook('shop'), { scale }); }
 
   // =====================================================================================
   // Golf, shot by shot. Every player hits every shot; where the ball ends up depends on skill and lie.
@@ -2023,10 +2539,11 @@ label.auto input { accent-color: var(--turf); }
     return { kind: 'full', to: hOff(h, t1, lat), holed: false, dist: Math.hypot(hOff(h, t1, lat).x - b.x, hOff(h, t1, lat).y - b.y) };
   }
   const splashes = [];
+  const SHOT_PRE = { putt: 0.45, chip: 0.55, approach: 0.7, full: 0.75 };   // seconds from the start of the swing to impact
   function startShot(g, v) {
     const b = g.balls.get(v), plan = planShot(v, g, b);
     const dist = Math.hypot(plan.to.x - b.x, plan.to.y - b.y);
-    g.shot = { v, from: { x: b.x, y: b.y }, to: plan.to, kind: plan.kind, holed: plan.holed, t: plan.kind === 'putt' ? -0.25 : -0.38,
+    g.shot = { v, from: { x: b.x, y: b.y }, to: plan.to, kind: plan.kind, holed: plan.holed, t: -(SHOT_PRE[plan.kind] || 0.7),
                dur: plan.kind === 'putt' ? 0.4 + dist * 0.035 : plan.kind === 'chip' ? 0.55 : 0.5 + dist / 240,
                peak: plan.kind === 'putt' ? 0 : plan.kind === 'chip' ? 7 : Math.min(70, dist * 0.32), fromLie: b.lie, struck: false };
     b.strokes++;
@@ -2155,7 +2672,7 @@ label.auto input { accent-color: var(--turf); }
   const holeStrokes = (g, v) => (g.phase === 'play' && g.balls.get(v) ? g.balls.get(v).strokes : 0);
 
   // ---- drawing golfers, balls and shots
-  function drawGroups(t) {
+  function drawGroups(t, dt) {
     for (const g of groups) {
       for (const v of g.players) {
         const b = g.phase === 'play' ? g.balls.get(v) : null;
@@ -2164,21 +2681,23 @@ label.auto input { accent-color: var(--turf); }
           ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.arc(b.x + 0.6, b.y + 0.6, 1.5, 0, Math.PI * 2); ctx.fill();
           ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(b.x, b.y, 1.4, 0, Math.PI * 2); ctx.fill();
         }
-        if (!vis(v.x - 14, v.y - 16, v.x + 14, v.y + 10)) continue;
-        if (v.riding) {
-          ctx.save(); ctx.translate(v.x, v.y); ctx.rotate(v.ang);
-          ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(-5, -3, 14, 9);
-          ctx.fillStyle = '#f5f5f0'; ctx.fillRect(-7, -5, 14, 10); ctx.fillStyle = '#2c4a6e'; ctx.fillRect(-1, -5, 3, 10);
-          ctx.fillStyle = v.color; ctx.beginPath(); ctx.arc(-3, 0, 2.6, 0, Math.PI * 2); ctx.fill();
-          ctx.restore();
+        const sh = g.shot && g.shot.v === v ? g.shot : null;
+        // before impact the ball still sits where it was
+        if (sh && sh.t < 0 && vis(sh.from.x - 4, sh.from.y - 4, sh.from.x + 4, sh.from.y + 4)) { ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.arc(sh.from.x + 0.6, sh.from.y + 0.6, 1.5, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(sh.from.x, sh.from.y, 1.4, 0, Math.PI * 2); ctx.fill(); }
+        if (!vis(v.x - 16, v.y - 26, v.x + 16, v.y + 12)) { gait(v, dt); continue; }
+        const gt = gait(v, dt), lk = lookOf(v);
+        if (v.riding) { drawGolfCart(v.x, v.y, v.ang || 0, { t, moving: gt.moving, riders: [lk], bags: [lk.bag], seed: v.id }); continue; }
+        if (sh) {
+          // the swing, timed so the club meets the ball as it leaves
+          const act = sh.kind === 'putt' ? 'putt' : sh.kind === 'chip' ? 'chip' : 'swing', imp = act === 'putt' ? 0.5 : 0.6, pre = SHOT_PRE[sh.kind] || 0.7;
+          const k = sh.t < 0 ? imp * (1 + sh.t / pre) : imp + (1 - imp) * Math.min(1, sh.t / 0.55);
+          const flip = sh.to.x < sh.from.x, sc = 1.25 * lk.h, off = { swing: [0.8, 4.5], chip: [0.5, 3.6], putt: [0.1, 4.0] }[act];
+          drawPerson(sh.from.x - (flip ? -off[0] : off[0]) * sc, sh.from.y - off[1] * sc, lk, { act, k, flip, scale: 1.25 });
           continue;
         }
-        const sh = g.shot && g.shot.v === v ? g.shot : null;
-        let swing = null;
-        if (sh) swing = sh.kind === 'putt' ? (sh.t < 0 ? -0.4 + Math.sin((sh.t + 0.25) / 0.25 * Math.PI) * 0.15 : -0.25) : sh.t < 0 ? (1 + sh.t / 0.38) * Math.PI * 0.9 - Math.PI * 0.9 : Math.min(Math.PI, sh.t * 7);
-        const moving = !sh && v.target && Math.hypot((v.target.x || 0) - v.x, (v.target.y || 0) - v.y) > 1 && g.phase === 'toTee';
-        drawGolfer(v.x, v.y + (moving ? Math.sin(t * 10 + v.id) * 0.8 : 0), v.color, swing, 1.3);
-        if (!sh) { ctx.fillStyle = '#2b2f36'; ctx.fillRect(v.x + 3, v.y - 8, 2.6, 8); ctx.fillStyle = '#d7dde2'; ctx.fillRect(v.x + 3.3, v.y - 10, 2, 2.4); }   // bag
+        const fx = v.fx && simTime - v.fx.t0 < 1.6 ? v.fx : null;
+        drawPerson(v.x, v.y, lk, { ang: gt.moving ? gt.dir : Math.PI / 2, walk: gt.moving ? gt.ph : null, act: fx ? fx.kind : null, k: fx ? (simTime - fx.t0) / 1.6 : 0,
+          carry: lk.trolley ? 'trolley' : 'bag', scale: 1.25, umbrella: S.wx === 'rain', look: Math.sin(t * 0.4 + v.id) * 0.8 });
       }
       // the ball in the air: arc, shadow and a fading tracer
       const sh = g.shot;
@@ -2219,6 +2738,7 @@ label.auto input { accent-color: var(--turf); }
     ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillRect(-4, -4, W + 8, H + 10);
     ctx.fillStyle = stripePattern(); ctx.fillRect(Math.max(0, V.x0), Math.max(0, V.y0), Math.min(W, V.x1) - Math.max(0, V.x0), Math.min(H, V.y1) - Math.max(0, V.y0));
     if (vis(LAKE.x - LAKE.rx - 10, LAKE.y - LAKE.ry - 10, LAKE.x + LAKE.rx + 10, LAKE.y + LAKE.ry + 10)) water(LAKE.x, LAKE.y, LAKE.rx, LAKE.ry, 0.12);
+    drawDucks(t);
 
     const shown = [];
     for (let i = 0; i < 18; i++) { const b = holeBox(i); if (vis(...b)) shown.push(i); }
@@ -2271,27 +2791,10 @@ label.auto input { accent-color: var(--turf); }
 
       // pickers
       pickers.forEach((p, i) => {
-        const px = p.x, py = p.y, cart = hasCart(i), cap = pickerCap(cart), lf = p.load / cap;
-        const moving = p.state === 'seek' || p.state === 'return' || p.state === 'collect';
-        if (cart) {
-          if (moving && onScreen(px, py)) audibleCarts++;
-          ctx.save(); ctx.translate(px, py); ctx.rotate(p.ang + Math.PI / 2); ctx.scale(1.4, 1.4);
-          ctx.fillStyle = 'rgba(0,0,0,0.28)'; ctx.fillRect(-4, -6, 10, 15);
-          ctx.fillStyle = '#9aa4ad'; ctx.fillRect(-7, -10, 14, 3);
-          if (p.state === 'collect') { ctx.fillStyle = '#d7dde2'; for (let k = -6; k < 7; k += 3) ctx.fillRect(k + (t * 20 % 3), -10, 1, 3); }
-          ctx.fillStyle = '#d64a2e'; ctx.fillRect(-4.5, -6, 9, 13);
-          ctx.fillStyle = '#2b2f36'; ctx.fillRect(-3.5, 3, 7, 3);
-          ctx.strokeStyle = '#f0f0f0'; ctx.lineWidth = 1; ctx.strokeRect(-3.5, -5, 7, 7);
-          ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.fillRect(-3, 2 - 6.5 * lf, 6, 6.5 * lf);
-          ctx.fillStyle = '#f0c8a0'; ctx.beginPath(); ctx.arc(0, 4.5, 1.6, 0, Math.PI * 2); ctx.fill();
-          ctx.restore();
-        } else {
-          const bob = moving ? Math.sin(t * 9 + i) * 0.8 : 0;
-          drawGolfer(px, py + bob, '#3a7bd5', null);
-          ctx.fillStyle = '#7a5a3c'; ctx.fillRect(px + 3.5, py - 5 + bob, 5.5, 5);
-          ctx.fillStyle = '#fff'; ctx.fillRect(px + 4, py - 0.5 + bob - 4 * lf, 4.5, 4 * lf);
-          if (p.state === 'collect' && Math.sin(t * 6 + i) > 0.6) { ctx.strokeStyle = '#d7dde2'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(px - 2, py - 3); ctx.lineTo(px - 6, py + 4); ctx.stroke(); }
-        }
+        const px = p.x, py = p.y, cart = hasCart(i), cap = pickerCap(cart), lf = p.load / cap, gt = gait(p, dt);
+        const lk = staffLook('picker', (curR ? curR.id * 20 : 0) + i);
+        if (cart) drawPickerCart(px, py, p.ang || 0, { t, moving: gt.moving, collect: p.state === 'collect', load: lf, look: lk });
+        else drawPerson(px, py, lk, { ang: gt.moving ? gt.dir : Math.PI / 2, walk: gt.moving ? gt.ph : null, act: p.state === 'collect' && !gt.moving ? 'bend' : null, k: (t * 0.7 + i * 0.3) % 1, carry: 'basket', load: lf, scale: 1.15 });
         if (p.load > 0 && p.state !== 'unload') {
           ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(px - 8, py - 18, 16, 3);
           ctx.fillStyle = lf >= 0.99 ? '#f2c14e' : '#ffffff'; ctx.fillRect(px - 8, py - 18, 16 * lf, 3);
@@ -2307,20 +2810,24 @@ label.auto input { accent-color: var(--turf); }
       }
       for (let a = 0; a < Math.min(6, N('attend')); a++) {
         const span = Math.max(BAY_W, Math.min(staffed, bays()) * BAY_W);
-        drawGolfer(RX0 + 16 + (rangeX1() - RX0 - 32) * (0.5 + 0.5 * Math.sin(t * 0.3 + a * 2.1)), TEE_Y + 18, '#ff8a3d', null);
+        const span2 = rangeX1() - RX0 - 32, ax = RX0 + 16 + span2 * (0.5 + 0.5 * Math.sin(t * 0.3 + a * 2.1)), vx = Math.cos(t * 0.3 + a * 2.1);
+        drawPerson(ax, TEE_Y + 18, staffLook('attend', (curR ? curR.id * 10 : 0) + a), { ang: vx > 0 ? 0 : Math.PI, walk: Math.abs(vx) > 0.08 ? ax * 0.55 : null, scale: 1.15 });
       }
       for (const g of range) {
         if (g.state !== 'play') continue;
-        g.swing = Math.max(0, g.swing - dt * 3);
-        drawGolfer(bayX(g.bay) - 4, TEE_Y, g.color, g.swing > 0 ? (1 - g.swing) * Math.PI : -0.6);
+        g.swingT = (g.swingT ?? 9) + dt;
+        const st = g.swingT, bx0 = bayX(g.bay), ballY = TEE_Y + 6.4;
+        if (st < RANGE_IMPACT || st > RANGE_IMPACT + 0.9) { ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(bx0 + 1, ballY, 1.3, 0, Math.PI * 2); ctx.fill(); }
+        drawPerson(bx0, TEE_Y + 1, lookOf(g), st < 1.25 ? { act: 'swing', k: st / 1.25, scale: 1.2 } : { act: 'address', k: (st * 0.5) % 1, scale: 1.2 });
         // the bucket beside them empties as they hit
-        const left = Math.max(0, 1 - g.t / g.dur), bx = bayX(g.bay) + 5, by = TEE_Y + 1;
+        const left = Math.max(0, 1 - g.t / g.dur), bx = bayX(g.bay) + 8, by = TEE_Y + 4;
         ctx.fillStyle = '#e8432e'; ctx.fillRect(bx - 2.5, by - 2.5, 5, 5);
         ctx.fillStyle = '#ffffff'; ctx.fillRect(bx - 1.8, by + 1.8 - 3.6 * left, 3.6, 3.6 * left);
       }
     }
-    for (const f of flights.splice(0)) {
-      if (shots.length < 80) shots.push({ x0: bayX(f.bay), y0: TEE_Y - 3, x1: f.x, y1: f.y, t: 0 });
+    for (let fi = flights.length - 1; fi >= 0; fi--) {
+      const f = flights[fi]; f.wait = (f.wait ?? RANGE_IMPACT) - dt; if (f.wait > 0) continue; flights.splice(fi, 1);
+      if (shots.length < 80) shots.push({ x0: bayX(f.bay) + 1, y0: TEE_Y + 6, x1: f.x, y1: f.y, t: 0 });
       if (warp <= 2 && onScreen(bayX(f.bay), TEE_Y)) Sound.strike(onScreenX(bayX(f.bay)), zoomVol());
     }
     });
@@ -2341,38 +2848,47 @@ label.auto input { accent-color: var(--turf); }
       const wv = Math.sin(t * (4 + wind * 6) + i) * (1 + wind * 1.5);
       ctx.fillStyle = '#e8432e'; ctx.beginPath(); ctx.moveTo(gr.x + 2.8, gr.y - 18); ctx.lineTo(gr.x + 13 + wind * 3, gr.y - 15.5 + wv * 0.8); ctx.lineTo(gr.x + 2.8, gr.y - 12); ctx.fill();
     }
-    drawKeepers(t);
+    drawKeepers(t, dt);
     const t0 = teePos(0);
-    drawGroups(t);
-    drawConduct(t);
+    drawGroups(t, dt);
+    drawConduct(t, dt);
     // cars, then everyone on foot
     for (const v of vehicles) if (vis(v.x - 20, v.y - 20, v.x + 20, v.y + 20)) drawCar(v, t);
     for (const v of visitors) {
       if (v.state === 'drive' || v.state === 'play' || v.state === 'golf' || v.state === 'gone') continue;
-      if (!vis(v.x - 12, v.y - 22, v.x + 12, v.y + 10)) continue;
-      if (v.state === 'walk' && v.cart) {
-        // riding a golf cart back from the last green
-        ctx.save(); ctx.translate(v.x, v.y); ctx.rotate(v.ang);
-        ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(-5, -3, 14, 9);
-        ctx.fillStyle = '#f5f5f0'; ctx.fillRect(-7, -5, 14, 10); ctx.fillStyle = '#2c4a6e'; ctx.fillRect(-1, -5, 3, 10);
-        ctx.fillStyle = v.color; ctx.beginPath(); ctx.arc(-3, 0, 2.6, 0, Math.PI * 2); ctx.fill();
-        ctx.restore();
-        continue;
-      }
-      const moving = v.state === 'walk', bob = moving ? Math.sin(t * 10 + v.id) * 0.9 : 0;
+      if (!vis(v.x - 16, v.y - 28, v.x + 16, v.y + 12)) { gait(v, dt); continue; }
+      const gt = gait(v, dt), lk = lookOf(v);
+      if (v.state === 'walk' && v.cart) { drawGolfCart(v.x, v.y, v.ang || 0, { t, moving: gt.moving, riders: [lk], bags: [lk.bag], seed: v.id }); continue; }
       const seated = v.state === 'venue' && v.venue !== 'shop';
-      drawGolfer(v.x, v.y + bob, v.color, null, seated ? 0.9 : 1.1);
-      if (v.hasBucket && v.state !== 'play') { ctx.fillStyle = '#e8432e'; ctx.fillRect(v.x + 2.5, v.y - 4 + bob, 4.5, 4.5); ctx.fillStyle = '#ffffff'; ctx.fillRect(v.x + 3.2, v.y - 4.6 + bob, 3.1, 1.8); }
-      else if (v.bag && !seated && v.state !== 'venue') { ctx.fillStyle = '#2b2f36'; ctx.fillRect(v.x + 2.5, v.y - 7 + bob, 2.6, 8); ctx.fillStyle = '#d7dde2'; ctx.fillRect(v.x + 2.8, v.y - 9 + bob, 2, 2.4); }
+      let act = null, k = 0, face = 'S', flip = false, ang = gt.moving ? gt.dir : gt.idle > 1.5 ? Math.PI / 2 : gt.dir;
+      if (seated) {
+        // face the table (or the bar)
+        act = 'sit'; const seat = VENUES[v.venue] && VENUES[v.venue].seats[v.seat];
+        face = !seat || seat.ty == null || seat.y > seat.ty ? 'N' : 'S'; k = (t * 0.3 + v.id * 0.1) % 1;
+      } else if (v.state === 'amen') {
+        // practising: putts on the putting green, chips at the short game area, swings in a lesson
+        const cyc = (len, rest) => { const c = (v.t + v.id * 0.77) % (len + rest); return c < len ? c / len : null; };
+        if (v.amenType === 'putt') { const c = cyc(1.6, 1.4); if (c != null) { act = 'putt'; k = c; } else act = 'address'; }
+        else if (v.amenType === 'short') { const c = cyc(1.4, 2); if (c != null) { act = 'chip'; k = c; } else act = 'address'; }
+        else if (v.amenType === 'academy') { const c = cyc(1.5, 2.5); act = c != null ? 'swing' : 'address'; k = c ?? ((t * 0.5) % 1); }
+        flip = v.id % 3 === 0;
+      } else if (v.state === 'filling') { ang = -Math.PI / 2; }
+      else if (v.state === 'queue' && v.bag && !v.hasBucket && !gt.moving) {
+        // a practice swing while waiting for the first tee
+        const c = (simTime + v.id * 1.7) % 11; if (c < 1.5) { act = 'swing'; k = c / 1.5; flip = v.id % 2 === 0; }
+      }
+      if (!act && v.fx && simTime - v.fx.t0 < 1.6) { act = v.fx.kind; k = (simTime - v.fx.t0) / 1.6; }
+      const carry = v.hasBucket && v.state !== 'play' ? 'bucket' : v.bag && !seated && v.state !== 'venue' && v.state !== 'amen' ? (lk.trolley ? 'trolley' : 'bag') : null;
+      drawPerson(v.x, v.y, lk, { ang, walk: gt.moving ? gt.ph : null, act, k, face, flip, carry, scale: seated ? 1.0 : 1.12, umbrella: S.wx === 'rain' && gt.moving, look: Math.sin(t * 0.35 + v.id) * 0.8 });
       // patience bar while queueing
       if (v.state === 'queue') {
         const left = Math.max(0, 1 - v.wait / v.patience);
-        ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(v.x - 7, v.y - 17, 14, 3);
-        ctx.fillStyle = left > 0.5 ? '#7fe09a' : left > 0.25 ? '#f2c14e' : '#e8432e'; ctx.fillRect(v.x - 7, v.y - 17, 14 * left, 3);
+        ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(v.x - 7, v.y - 23, 14, 3);
+        ctx.fillStyle = left > 0.5 ? '#7fe09a' : left > 0.25 ? '#f2c14e' : '#e8432e'; ctx.fillRect(v.x - 7, v.y - 23, 14 * left, 3);
       }
       if (v.upset) {
-        ctx.fillStyle = '#e8432e'; ctx.beginPath(); ctx.arc(v.x, v.y - 20, 5, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#fff'; ctx.font = '800 8px Figtree, system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.fillText('!', v.x, v.y - 17);
+        ctx.fillStyle = '#e8432e'; ctx.beginPath(); ctx.arc(v.x, v.y - 27, 5, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#fff'; ctx.font = '800 8px Figtree, system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.fillText('!', v.x, v.y - 24);
       }
     }
     drawUmbrellas();
@@ -2381,6 +2897,7 @@ label.auto input { accent-color: var(--turf); }
     // ---------- trees on top ----------
     trees.forEach((tr, k) => { if (tr.x + tr.r > V.x0 && tr.x - tr.r < V.x1 && tr.y + tr.r > V.y0 && tr.y - tr.r < V.y1) { if (designing && draftClear.has(k)) ctx.globalAlpha = 0.35; tree(tr); ctx.globalAlpha = 1; } });
     drawFeatures('top');
+    stepFliers(dt, t); drawFliers();
     drawLand(); drawConnectWarnings(t); drawBuildOverlay(t);
     if (designing) drawDesignOverlay(t);
 
@@ -3415,7 +3932,7 @@ label.auto input { accent-color: var(--turf); }
       }
     }
   }
-  function drawConduct(t) {
+  function drawConduct(t, dt) {
     // litter
     for (const l of litter) {
       if (!vis(l.x - 4, l.y - 4, l.x + 4, l.y + 4)) continue;
@@ -3448,25 +3965,13 @@ label.auto input { accent-color: var(--turf); }
     }
     // marshals: navy polo and cap on foot, or a white cart with an amber beacon
     for (const m of marshals) {
-      if (!vis(m.x - 16, m.y - 20, m.x + 16, m.y + 12)) continue;
-      if (m.cart) {
-        ctx.save(); ctx.translate(m.x, m.y); ctx.rotate(m.ang);
-        ctx.fillStyle = 'rgba(0,0,0,0.28)'; ctx.fillRect(-7, -4, 18, 11);
-        ctx.fillStyle = '#f5f5f0'; ctx.fillRect(-9, -6, 18, 12);
-        ctx.fillStyle = '#1f3a5f'; ctx.fillRect(-2, -6, 4, 12); ctx.fillRect(-9, -6, 3, 12);
-        ctx.fillStyle = '#f0c8a0'; ctx.beginPath(); ctx.arc(1, -2.5, 2.2, 0, Math.PI * 2); ctx.fill();
-        ctx.restore();
-        const on = Math.sin(t * 9 + m.id) > 0;
-        ctx.fillStyle = on ? '#ffb31a' : '#a26a00'; ctx.beginPath(); ctx.arc(m.x, m.y - 9, 2.4, 0, Math.PI * 2); ctx.fill();
-        if (on) { ctx.fillStyle = 'rgba(255,190,40,0.25)'; ctx.beginPath(); ctx.arc(m.x, m.y - 9, 7, 0, Math.PI * 2); ctx.fill(); }
-      } else {
-        const bob = m.state === 'work' ? 0 : Math.sin(t * 10 + m.id) * 0.9;
-        drawGolfer(m.x, m.y + bob, '#1f3a5f', null, 1.15);
-        ctx.fillStyle = '#ffffff'; ctx.fillRect(m.x - 2.6, m.y - 10.5 + bob, 5.2, 1.6);   // cap
-        ctx.fillStyle = '#ffb31a'; ctx.fillRect(m.x - 2.5, m.y - 4 + bob, 5, 1.4);       // armband
-        if (m.state === 'work' && m.job && m.job.kind !== 'person') {   // working: little spark
-          ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.fillRect(m.x - 6 + Math.sin(t * 20) * 2, m.y + 2, 1.5, 1.5);
-        }
+      const gt = gait(m, dt);
+      if (!vis(m.x - 16, m.y - 26, m.x + 16, m.y + 12)) continue;
+      const lk = staffLook('marshal', m.id);
+      if (m.cart) drawGolfCart(m.x, m.y, m.ang || 0, { t, moving: gt.moving, riders: [lk], roof: '#f5f5f0', stripe: '#1f3a5f', beacon: true, seed: m.id });
+      else {
+        drawPerson(m.x, m.y, lk, { ang: gt.moving ? gt.dir : Math.PI / 2, walk: gt.moving ? gt.ph : null, act: m.state === 'work' && m.job && m.job.kind !== 'person' ? 'bend' : m.state === 'work' ? 'wave' : null, k: (t * 0.8) % 1, scale: 1.15 });
+        if (m.state === 'work' && m.job && m.job.kind !== 'person') { ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.fillRect(m.x - 6 + Math.sin(t * 20) * 2, m.y + 2, 1.5, 1.5); }
       }
     }
   }
@@ -3515,6 +4020,7 @@ label.auto input { accent-color: var(--turf); }
   function emote(v, delta, kind, lines, chance = 0.35) {
     v.mood = Math.max(0, Math.min(100, moodOf(v) + delta));
     const k = kind || moodKind(v.mood), p = anchor(v);
+    if (k === 'delighted' || k === 'annoyed') v.fx = { kind: k === 'delighted' ? 'cheer' : 'slump', t0: simTime };
     if (!p || !onScreen(p.x, p.y) || warp === 0) return;
     bubbles = bubbles.filter(b => b.v !== v);
     // keep it calm: in a crowd, only strong reactions get their own bubble, and only one person speaks at a time nearby
@@ -3636,17 +4142,14 @@ label.auto input { accent-color: var(--turf); }
     }
     S.cond = built.length ? built.reduce((a, i) => a + S.turf[i], 0) / built.length : 100;
   }
-  function drawKeepers(t) {
+  function drawKeepers(t, dt) {
     for (const kp of keepers) {
-      if (!vis(kp.x - 20, kp.y - 20, kp.x + 20, kp.y + 20)) continue;
-      ctx.save(); ctx.translate(kp.x, kp.y); ctx.rotate(kp.ang || 0);
-      if (kp.state === 'mow') { ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.fillRect(-26, -7, 20, 14); }
-      ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(-4, -5, 13, 13);
-      ctx.fillStyle = '#e8c547'; ctx.fillRect(-6, -7, 13, 14); ctx.fillStyle = '#2b2f36'; ctx.fillRect(-3, -2, 5, 5);
-      ctx.fillStyle = '#9aa4ad'; ctx.fillRect(7, -9, 3, 18);
-      if (kp.state === 'mow') { ctx.fillStyle = 'rgba(120,200,120,0.8)'; for (let k = 0; k < 3; k++) ctx.fillRect(-10 - ((t * 40 + k * 5) % 14), -6 + k * 5, 2, 2); }
-      ctx.restore();
+      const gt = gait(kp, dt);
+      if (!vis(kp.x - 24, kp.y - 24, kp.x + 24, kp.y + 24)) continue;
+      if (kp.state === 'mow') { ctx.save(); ctx.translate(kp.x, kp.y); ctx.rotate(kp.ang || 0); ctx.fillStyle = 'rgba(255,255,255,0.16)'; ctx.fillRect(-30, -8, 36, 16); ctx.restore(); }
+      drawMower(kp.x, kp.y, kp.ang || 0, { t, mowing: kp.state === 'mow', moving: gt.moving, look: staffLook('keeper', kp.id), dt });
     }
+    drawClippings(dt);
   }
 
   // =====================================================================================

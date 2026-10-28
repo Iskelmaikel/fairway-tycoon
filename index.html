@@ -63,6 +63,27 @@ body {
 .sc-empty { grid-column: 1 / -1; color: var(--muted); font-size: 14px; padding: 16px; border: 2px dashed var(--line); border-radius: 14px; text-align: center; line-height: 1.4; }
 
 .park { display: flex; flex-direction: column; gap: 12px; padding: 12px 14px 14px; }
+.hours, .people { padding: 10px 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+.fac-head { display: flex; gap: 10px; align-items: flex-start; } .fac-head p { margin: 0; flex: 1; font-size: 12.5px; color: var(--muted); line-height: 1.4; } .fac-head b { color: var(--ink); }
+.fac { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; transition: box-shadow 0.4s; }
+.fac.focus { box-shadow: 0 0 0 3px var(--gold); }
+.fac-top { display: flex; gap: 10px; align-items: center; }
+.fac-ic { width: 32px; height: 32px; border-radius: 10px; background: #eef4ef; color: var(--turf); display: grid; place-items: center; flex: none; } .fac-ic svg { width: 18px; height: 18px; }
+.fac-t { display: flex; flex-direction: column; min-width: 0; flex: 1; } .fac-t b { font-size: 14px; }
+.fac-st { font-size: 12px; font-weight: 700; } .fac-st::before { content: '● '; } .fac-st.open { color: #2a8a4a; } .fac-st.shut { color: #c8322a; }
+.fac-hours { display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 700; flex-wrap: wrap; }
+.fac-hours select { font: 700 13px var(--font-body); padding: 5px 6px; border-radius: 8px; border: 1px solid var(--line); background: #fff; color: var(--ink); }
+.fac-inline { display: flex; flex-direction: column; gap: 8px; padding: 4px 2px 6px; }
+.fac-note { margin: 0; font-size: 11.5px; color: var(--muted); line-height: 1.35; }
+.fac-mode button[data-fmode="shut"][aria-pressed="true"] { background: #c8322a; color: #fff; }
+.who-seg small { opacity: 0.6; font-weight: 700; }
+.who-list { display: flex; flex-direction: column; gap: 4px; }
+.who { display: flex; align-items: center; gap: 10px; text-align: left; width: 100%; border: 1px solid var(--line); background: #fff; border-radius: 12px; padding: 8px 10px; font: inherit; color: inherit; cursor: pointer; }
+.who:hover, .who:focus-visible { border-color: var(--turf); background: #f4fbf6; }
+.who-dot { width: 12px; height: 12px; border-radius: 50%; flex: none; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.15); }
+.who-t { flex: 1; min-width: 0; display: flex; flex-direction: column; } .who-t b { font-size: 13px; } .who-t small { font-size: 11.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.who-m { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; flex: none; } .who-m small { font-size: 11px; color: var(--muted); font-weight: 700; }
+.who-bar { width: 54px; height: 5px; border-radius: 3px; background: #e2e9e3; overflow: hidden; } .who-bar em { display: block; height: 100%; }
 .stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .stat { background: #eef4ef; border-radius: 12px; padding: 9px 11px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .stat .eyebrow { color: var(--muted); opacity: 1; }
@@ -401,11 +422,39 @@ button { font-family: var(--font-body); }
 
 /* ---- inspector: whoever or whatever you clicked ---- */
 .inspector {
-  position: fixed; z-index: 4; left: max(10px, env(safe-area-inset-left, 0px)); width: 280px; zoom: var(--ui, 1);
+  position: fixed; z-index: 4; left: max(10px, env(safe-area-inset-left, 0px)); width: 304px; zoom: var(--ui, 1); max-height: calc(100vh - var(--hudH, 80px) - 120px); display: flex; flex-direction: column;
   background: var(--paper); border-radius: 16px; overflow: hidden; box-shadow: 0 14px 34px rgba(0,0,0,0.4);
 }
 .insp-head { display: flex; align-items: center; gap: 8px; padding: 8px 8px 8px 12px; background: linear-gradient(180deg, #1f5a35, #143a24); color: #fff; border-bottom: 3px solid var(--gold); }
-.insp-head b { flex: 1; font-size: 14px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.insp-head .insp-av { width: 40px; height: 40px; border-radius: 50%; background: #e8efe9; flex: none; border: 2px solid rgba(255,255,255,0.7); }
+.insp-tt { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.insp-tt b { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.insp-tt small { font-size: 11.5px; opacity: 0.8; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.insp-cam { position: relative; height: 150px; background: #123d22; flex: none; }
+.insp-cam canvas { display: block; width: 100%; height: 100%; cursor: zoom-in; }
+.insp-live { position: absolute; left: 8px; top: 7px; font: 800 9.5px var(--font-body); letter-spacing: 0.08em; color: #fff; background: rgba(200,50,42,0.9); padding: 2px 6px 2px 14px; border-radius: 6px; pointer-events: none; }
+.insp-live::before { content: ''; position: absolute; left: 5px; top: 50%; width: 5px; height: 5px; margin-top: -2.5px; border-radius: 50%; background: #fff; animation: livePulse 1.4s ease-in-out infinite; }
+@keyframes livePulse { 50% { opacity: 0.25; } }
+.insp-cam-btns { position: absolute; right: 6px; bottom: 6px; display: flex; gap: 5px; }
+.insp-cam-btns button { font: 800 11.5px var(--font-body); padding: 6px 10px; border-radius: 9px; border: 0; background: rgba(255,255,255,0.92); color: var(--ink); cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.3); }
+.insp-cam-btns button[aria-pressed="true"] { background: var(--gold); }
+.insp-body { overflow-y: auto; }
+.insp-now { font-weight: 800; font-size: 13px; line-height: 1.35; margin-bottom: 6px; }
+.insp-sec { border-top: 1px solid var(--line); padding-top: 7px; margin-top: 7px; }
+.insp-sec h4 { margin: 0 0 5px; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.insp-body .kv { display: flex; justify-content: space-between; gap: 10px; font-size: 12.5px; }
+.insp-body .kv span { color: var(--muted); }
+.insp-body .kv b { font-size: 12.5px; text-align: right; }
+.insp-body .thought { margin: 5px 0 0; font-style: italic; color: #4c5a50; }
+.steps { display: flex; flex-wrap: wrap; gap: 4px; }
+.step { font-size: 11px; font-weight: 700; padding: 3px 7px; border-radius: 999px; background: #eef1ec; color: var(--muted); }
+.step.done { background: #dff1e3; color: #2a7a44; }
+.step.now { background: var(--gold); color: var(--ink); }
+.card-row { display: flex; flex-wrap: wrap; gap: 2px; margin-bottom: 4px; }
+.sc { display: flex; flex-direction: column; align-items: center; width: 27px; border-radius: 6px; background: #f3f5f2; padding: 2px 0; font-variant-numeric: tabular-nums; }
+.sc small { font-size: 8.5px; color: var(--muted); font-weight: 700; } .sc em { font-style: normal; font-size: 9px; color: var(--muted); } .sc b { font-size: 12px; }
+.sc.birdie b, .sc.eagle b { color: #c8322a; } .sc.eagle { background: #fde3dd; } .sc.bogey b { color: #2c4a6e; } .sc.worse b { color: #2c4a6e; } .sc.worse { background: #e3e9f2; }
+.sc.now { outline: 2px solid var(--gold); }
 .insp-head .close { width: 28px; height: 28px; font-size: 15px; }
 .insp-body { padding: 10px 12px; font-size: 12.5px; line-height: 1.5; color: var(--ink); }
 .insp-body b { font-size: 13px; }
@@ -413,6 +462,7 @@ button { font-family: var(--font-body); }
 .insp-body .bar { height: 5px; border-radius: 3px; background: #e2e9e3; overflow: hidden; margin: 4px 0 2px; }
 .insp-body .bar em { display: block; height: 100%; }
 .insp-foot { display: flex; gap: 6px; padding: 0 12px 10px; }
+.insp-foot:empty { display: none; }
 .insp-foot button { flex: 1; font: 800 12px var(--font-body); padding: 8px; border-radius: 10px; border: 1px solid var(--line); background: #fff; color: var(--ink); cursor: pointer; }
 .insp-foot button[aria-pressed="true"] { background: var(--ink); color: #fff; border-color: var(--ink); }
 
@@ -515,7 +565,9 @@ body.at-title .top, body.at-title .bottom, body.at-title .sheet, body.at-title .
   .tab kbd { display: none; }
   .tab .dot { right: calc(50% - 18px); }
   .sheet { left: max(8px, env(safe-area-inset-left, 0px)); right: max(8px, env(safe-area-inset-right, 0px)); bottom: calc(var(--tbH) + 14px + env(safe-area-inset-bottom, 0px)); max-height: min(56dvh, 520px); }
-  .inspector { bottom: calc(var(--tbH) + 14px + env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%); width: min(320px, calc(100% - 20px)); }
+  .inspector { bottom: calc(var(--tbH) + 14px + env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%); width: min(340px, calc(100% - 20px)); max-height: 58vh; }
+  .insp-cam { height: 108px; }
+  .insp-body { max-height: 24vh; }
   .title { background: linear-gradient(180deg, rgba(8, 26, 15, 0.55), rgba(8, 26, 15, 0.92) 45%); align-items: flex-end; }
   .title-col { width: 100%; padding-left: max(22px, env(safe-area-inset-left, 0px)); padding-right: 22px; justify-content: flex-end; gap: 16px; }
   .logo b { font-size: 48px; }
@@ -650,6 +702,8 @@ label.auto input { accent-color: var(--turf); }
     <div class="list" id="list"></div>
     <div class="teesheet" id="teesheet" hidden></div>
     <div class="fin" id="finPanel" hidden></div>
+    <div class="hours" id="hoursPanel" hidden></div>
+    <div class="people" id="peoplePanel" hidden></div>
     <div class="park" id="parkPanel" hidden data-sub="goals">
       <div class="stats" data-sec="guests">
         <div class="stat"><span class="eyebrow">Range bays</span><span class="v" id="bayTxt">0 / 3</span><div class="meter"><i id="bayBar"></i></div></div>
@@ -676,7 +730,9 @@ label.auto input { accent-color: var(--turf); }
 </section>
 
 <div class="inspector" id="inspector" hidden>
-  <div class="insp-head"><b id="inspTitle"></b><button class="close" id="inspClose" type="button" aria-label="Close">×</button></div>
+  <div class="insp-head"><canvas class="insp-av" id="inspAv" width="40" height="40" aria-hidden="true"></canvas><div class="insp-tt"><b id="inspTitle"></b><small id="inspSub"></small></div><button class="close" id="inspClose" type="button" aria-label="Close">×</button></div>
+  <div class="insp-cam"><canvas id="inspCam" title="Show in the main view"></canvas><span class="insp-live">LIVE</span>
+    <div class="insp-cam-btns"><button type="button" id="inspFollow" aria-pressed="false">Follow</button><button type="button" id="inspGo">Go to</button></div></div>
   <div class="insp-body" id="inspBody"></div>
   <div class="insp-foot" id="inspFoot"></div>
 </div>
@@ -815,7 +871,7 @@ label.auto input { accent-color: var(--turf); }
 <script>
 (() => {
   const $ = id => document.getElementById(id);
-  const GAME_VERSION = '0.35.0';   // bump with every release
+  const GAME_VERSION = '0.36.0';   // bump with every release
   const SAVE_KEY = 'fairway-tycoon-v2';
   // The desktop build (Electron) exposes window.fairwayPlatform; in a browser this is null and saves stay in localStorage.
   const Platform = window.fairwayPlatform || null;
@@ -973,7 +1029,7 @@ label.auto input { accent-color: var(--turf); }
   function pickRange() {
     let best = null, bs = -1;
     for (const o of rangeObjs()) {
-      if (!o.r || !connected('OBJ:' + o.id)) continue;
+      if (!o.r || !connected('OBJ:' + o.id) || !facOpen('range:' + o.id)) continue;
       const sc = withRange(o, () => (staffedBays() + 0.5) / (1 + range.length + bucketQueue.length + rangeQueue.length)) * (0.85 + Math.random() * 0.3);
       if (sc > bs) { bs = sc; best = o; }
     }
@@ -1298,11 +1354,11 @@ label.auto input { accent-color: var(--turf); }
   const nightRange = () => L('lights') ? Math.min(1, 0.25 + 0.15 * L('lights')) : 0.04;
   const arrivalBase = () => 0.3 * (1 + 0.3 * L('market'));
   const W_ = () => WEATHER[S.wx];
-  const openRanges = () => rangeObjs().filter(o => o.r && connected('OBJ:' + o.id)).length;
+  const openRanges = () => rangeObjs().filter(o => o.r && connected('OBJ:' + o.id) && facOpen('range:' + o.id)).length;
   const rangeDemand = () => (rangeOK() ? hcpDemand(false) * (1 - Math.pow(0.85, openRanges())) / 0.15 : 0) * starAppeal() * arrivalBase() * 0.6 * (S.wx === 'rain' ? rangeRainMult() : W_().range) * (isDark() ? nightRange() : 1) * parkAppeal() * seasonDemand() * valueDemand(ratioOf('bucket'));
-  const courseDemand = () => isDark() || isFrost() ? 0 : seasonDemand() * courseValue() * arrivalBase() * 0.32 * W_().course * (0.4 + 0.6 * S.cond / 100) * (1 + 0.1 * N('starter')) * courseAppeal() * parkAppeal() * starAppeal() * rivalShare() * (eventRunning() ? 0 : 1) * (courseOK() ? Math.pow(Math.min(1, courseHoles() / 9), 0.6) * hcpDemand(true) : 0);
+  const courseDemand = () => isDark() || isFrost() || !facOpen('course') ? 0 : seasonDemand() * courseValue() * arrivalBase() * 0.32 * W_().course * (0.4 + 0.6 * S.cond / 100) * (1 + 0.1 * N('starter')) * courseAppeal() * parkAppeal() * starAppeal() * rivalShare() * (eventRunning() ? 0 : 1) * (courseOK() ? Math.pow(Math.min(1, courseHoles() / 9), 0.6) * hcpDemand(true) : 0);
   const shopSpend = () => 0.5 * L('shop') * incomeMult();
-  const foodCourse = () => hasObj('hut') ? 6 * (1 + L('food')) * incomeMult() : 0;
+  const foodCourse = () => objs().some(o => o.type === 'hut' && facOpen('obj:' + o.id)) ? 6 * (1 + L('food')) * incomeMult() : 0;
   const maxWait = () => 16 * Math.pow(0.7, N('starter'));
   const salaries = () => STAFF.reduce((a, s) => a + s.sal * (RANGE_STAFF.has(s.id) ? rStaff(s.id) : (S.staff[s.id] || 0)), 0);
   const cost = u => u.id === 'order' ? Math.ceil(u.base * renoMult()) : Math.ceil(u.base * Math.pow(u.g, u.id === 'bay' || u.id === 'bayL' ? bays() - 3 : level(u)));
@@ -1369,15 +1425,15 @@ label.auto input { accent-color: var(--turf); }
   // ---- running costs, per in-game day
   function upkeepItems() {
     const it = [], add = (label, v) => { if (v > 0.5) it.push([label, v]); };
-    { let a = 0, b = 0, c = 0; forRanges(() => { a += 3 * bays() + 6 * machines(); b += 8 * L('covered') + 14 * L('lights'); c += 6 * Math.min(L('cart'), N('picker')); });
+    { let a = 0, b = 0, c = 0; forRanges(o => { const f = facShare('range:' + o.id); a += f * (3 * bays() + 6 * machines()); b += f * (8 * L('covered') + 14 * L('lights')); c += 6 * Math.min(L('cart'), N('picker')); });
       add('Range bays and ball machines', a); add('Covered bays and floodlights', b); add('Picker carts', c); }
     let holes = 0; for (let i = 0; i < 18; i++) if (S.design && S.design.holes[i].built) holes += 6 + 2 * (S.holes[i].par - 3);
     if (S.design) for (const f of S.design.feats) holes += FEATS[f.type].upkeep;
     add('Course upkeep', holes);
     add('Irrigation water', 10 * L('irrig') * (season() === 'summer' ? 1.6 : season() === 'winter' ? 0.4 : 1));
     add('Golf carts', 12 * L('carts'));
-    add('Clubhouse', (hasObj('club') ? 20 : 0) + 25 * L('barRoom') + 40 * L('resto') + 15 * L('terrace') + 15 * L('locker') + 10 * L('food') + 30 * L('reno'));
-    add('Car parks, amenities and paths', objs().reduce((a, o) => a + (OBJ[o.type].upkeep || 0), 0) + 0.15 * (S.world ? S.world.paths.length : 0));
+    add('Clubhouse', (hasObj('club') ? 20 : 0) + 25 * L('barRoom') * facShare('venue:bar') + 40 * L('resto') * facShare('venue:resto') + 15 * L('terrace') * facShare('venue:terrace') + 15 * L('locker') * facShare('venue:locker') + 10 * L('food') + 30 * L('reno'));
+    add('Car parks, amenities and paths', objs().reduce((a, o) => a + (OBJ[o.type].upkeep || 0) * facShare('obj:' + o.id), 0) + 0.15 * (S.world ? S.world.paths.length : 0));
     add('Advertising', 20 * L('market'));
     return it;
   }
@@ -1451,6 +1507,7 @@ label.auto input { accent-color: var(--turf); }
   let away = [];
   let earnLog = new Array(10).fill(0), earnIdx = 0, earnTick = 0, simTime = 0, groupId = 1;
 
+  function earnV(who, x, cat) { earn(x, cat); if (who) who.spent = (who.spent || 0) + x; }
   function earn(v, cat = 'other') { S.money += v; S.total += v; S.run += v; earnLog[earnIdx] += v; book(cat, v); }
 
   const shirt = ['#ffffff', '#f2c14e', '#7fd3ff', '#ff9ec7', '#c6f27a', '#ffb070'];
@@ -1494,7 +1551,7 @@ label.auto input { accent-color: var(--turf); }
     for (const g of groups) { onCourse += g.players.length; onHole[g.hole] = (onHole[g.hole] || 0) + g.players.length; stepGroup(g, dt); }
     groups = groups.filter(g => {
       if (!g.done) return true;
-      if (g.players.length) { if (foodCourse() && useSupply('food', g.players.length)) earn(foodCourse() * g.players.length, 'food'); S.rounds += g.players.length; finishRound(g); }
+      if (g.players.length) { if (foodCourse() && useSupply('food', g.players.length)) { earn(foodCourse() * g.players.length, 'food'); for (const v of g.players) v.spent = (v.spent || 0) + foodCourse(); } S.rounds += g.players.length; finishRound(g); }
       return false;
     });
 
@@ -1530,7 +1587,7 @@ label.auto input { accent-color: var(--turf); }
   const toPar = (p, g) => { const s = p.strokes.reduce((a, b) => a + b, 0) - g.pars.slice(0, p.strokes.length).reduce((a, b) => a + b, 0); return s === 0 ? 'E' : s > 0 ? '+' + s : '−' + Math.abs(s); };
 
   // ---------- Scene ----------
-  const cv = $('scene'), ctx = cv.getContext('2d');
+  const cv = $('scene'); let ctx = cv.getContext('2d');
   let SW = 0, SH = 0, dpr = 1;
   const cam = { x: 0, y: 0, s: 0, vx: 0, vy: 0 };
   let minS = 0.3, maxS = 4.5, padTop = 0, padBot = 0, padRight = 0;
@@ -1840,14 +1897,14 @@ label.auto input { accent-color: var(--turf); }
     ctx.fillStyle = '#2b2f36'; ctx.fillRect(1206, 1358, 6, 4);                                          // till
     ctx.fillStyle = '#e8e2d2'; ctx.fillRect(1176, 1424, 18, 6);                                         // door mat
     ctx.font = '800 8px Figtree, system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(40,30,20,0.6)'; ctx.fillText('PRO SHOP', 1185, 1424);
-    for (let k = 0; k < Math.min(3, N('assist') + 1); k++) drawPerson(1210 + k * 8, 1372, staffLook(k ? 'shop2' : 'shop', k), { act: 'work', k: (simTime * 0.4 + k * 0.3) % 1, scale: 1 });
+    for (const a of actors.values()) if (a.role === 'owner' || a.role === 'shop') drawPerson(a.x - CDX, a.y - CDY, a.look, { act: 'work', k: (simTime * 0.4 + a.idx * 0.3) % 1, scale: 1 });
     // restaurant + kitchen
     const resto = L('resto') > 0;
     room(R.resto, '#ece2cf', resto);
     if (resto) {
       ctx.fillStyle = '#b9b2a3'; ctx.fillRect(1002, 1352, 22, 76);                                       // kitchen
       ctx.fillStyle = '#8d949a'; ctx.fillRect(1004, 1356, 18, 10); ctx.fillRect(1004, 1372, 18, 10); ctx.fillStyle = '#d64a2e'; ctx.fillRect(1006, 1358, 4, 4); ctx.fillRect(1014, 1358, 4, 4);
-      for (let k = 0; k < Math.min(2, N('chef')); k++) { const ph = simTime * 0.5 + k * 2, cx = 1013 + Math.sin(ph) * 5, vx = Math.cos(ph); drawPerson(cx, 1396 + k * 14, staffLook('chef', k), Math.abs(vx) > 0.2 ? { ang: vx > 0 ? 0 : Math.PI, walk: cx * 0.6, scale: 1 } : { act: 'work', k: (simTime * 0.8) % 1, scale: 1 }); }
+      for (const a of actors.values()) if (a.role === 'chef') drawPerson(a.x - CDX, a.y - CDY, a.look, a.walk != null ? { ang: a.ang, walk: a.walk, scale: 1 } : { act: 'work', k: (simTime * 0.8) % 1, scale: 1 });
       const nT = Math.ceil(VENUES.resto.cap() / 4);
       for (let k = 0; k < 6; k++) { const s = VENUES.resto.seats[k * 4]; if (k < nT) table(s.tx, s.ty, 6, '#ffffff'); }
       if (!VENUES.resto.open()) { ctx.fillStyle = 'rgba(30,20,10,0.55)'; ctx.font = '800 8px Figtree, system-ui, sans-serif'; ctx.fillText('NEEDS A CHEF', 1078, 1424); }
@@ -1861,7 +1918,7 @@ label.auto input { accent-color: var(--turf); }
       for (const s of VENUES.bar.seats.slice(0, 6)) { ctx.fillStyle = '#2b1d12'; ctx.beginPath(); ctx.arc(s.x, s.y + 3, 2.6, 0, Math.PI * 2); ctx.fill(); }
       const hiTables = Math.max(0, Math.ceil((VENUES.bar.cap() - 6) / 3));
       for (let k = 0; k < 3; k++) if (k < hiTables) { const s = VENUES.bar.seats[6 + k * 3]; table(s.tx, s.ty, 5, '#a37a52'); }
-      for (let k = 0; k < Math.min(2, N('bar')); k++) drawPerson(1262 + k * 26 + Math.sin(simTime * 0.25 + k) * 6, 1361, staffLook('bar', k), { act: 'work', k: (simTime * 0.7 + k * 0.5) % 1, scale: 1 });
+      for (const a of actors.values()) if (a.role === 'bar') drawPerson(a.x - CDX, a.y - CDY, a.look, { act: 'work', k: (simTime * 0.7 + a.idx * 0.5) % 1, scale: 1 });
       if (!VENUES.bar.open()) { ctx.fillStyle = 'rgba(255,240,220,0.8)'; ctx.font = '800 8px Figtree, system-ui, sans-serif'; ctx.fillText('NEEDS A BARTENDER', 1280, 1424); }
     }
     // locker rooms
@@ -2715,7 +2772,7 @@ label.auto input { accent-color: var(--turf); }
         }
       }
     }
-    for (const sp of splashes) { sp.vy += 90 * (1 / 60); sp.x += sp.vx / 60; sp.y += sp.vy / 60; sp.life -= 1 / 60; ctx.fillStyle = sp.c; ctx.fillRect(sp.x - 1, sp.y - 1, 2, 2); }
+    for (const sp of splashes) { sp.vy += 90 * dt; sp.x += sp.vx * dt; sp.y += sp.vy * dt; sp.life -= dt; ctx.fillStyle = sp.c; ctx.fillRect(sp.x - 1, sp.y - 1, 2, 2); }
     for (let i = splashes.length - 1; i >= 0; i--) if (splashes[i].life <= 0) splashes.splice(i, 1);
   }
 
@@ -2749,6 +2806,7 @@ label.auto input { accent-color: var(--turf); }
     drawCartPaths();
     forRanges(() => drawRangeStatic());
     drawAmenities(t);
+    drawClosedSigns(t);
     drawClubhouse();
 
     // selected hole outline
@@ -2792,7 +2850,7 @@ label.auto input { accent-color: var(--turf); }
       // pickers
       pickers.forEach((p, i) => {
         const px = p.x, py = p.y, cart = hasCart(i), cap = pickerCap(cart), lf = p.load / cap, gt = gait(p, dt);
-        const lk = staffLook('picker', (curR ? curR.id * 20 : 0) + i);
+        const lk = staffLook('picker', (curR ? curR.id * 20 : 0) + i); p.look = lk;
         if (cart) drawPickerCart(px, py, p.ang || 0, { t, moving: gt.moving, collect: p.state === 'collect', load: lf, look: lk });
         else drawPerson(px, py, lk, { ang: gt.moving ? gt.dir : Math.PI / 2, walk: gt.moving ? gt.ph : null, act: p.state === 'collect' && !gt.moving ? 'bend' : null, k: (t * 0.7 + i * 0.3) % 1, carry: 'basket', load: lf, scale: 1.15 });
         if (p.load > 0 && p.state !== 'unload') {
@@ -2808,10 +2866,9 @@ label.auto input { accent-color: var(--turf); }
         ctx.fillStyle = 'rgba(20,25,20,0.45)'; ctx.fillRect(x + 2, TEE_Y - 6, BAY_W - 4, 15);
         ctx.fillStyle = '#ff8a3d'; ctx.beginPath(); ctx.moveTo(x + BAY_W / 2, TEE_Y - 8); ctx.lineTo(x + BAY_W / 2 + 4, TEE_Y + 4); ctx.lineTo(x + BAY_W / 2 - 4, TEE_Y + 4); ctx.fill();
       }
-      for (let a = 0; a < Math.min(6, N('attend')); a++) {
-        const span = Math.max(BAY_W, Math.min(staffed, bays()) * BAY_W);
-        const span2 = rangeX1() - RX0 - 32, ax = RX0 + 16 + span2 * (0.5 + 0.5 * Math.sin(t * 0.3 + a * 2.1)), vx = Math.cos(t * 0.3 + a * 2.1);
-        drawPerson(ax, TEE_Y + 18, staffLook('attend', (curR ? curR.id * 10 : 0) + a), { ang: vx > 0 ? 0 : Math.PI, walk: Math.abs(vx) > 0.08 ? ax * 0.55 : null, scale: 1.15 });
+      for (const a of actors.values()) {
+        if (a.role !== 'attend' || !curR || a.rangeId !== curR.id) continue;
+        drawPerson(a.x, a.y, a.look, { ang: a.ang, walk: a.walk, scale: 1.15 });
       }
       for (const g of range) {
         if (g.state !== 'play') continue;
@@ -2848,6 +2905,7 @@ label.auto input { accent-color: var(--turf); }
       const wv = Math.sin(t * (4 + wind * 6) + i) * (1 + wind * 1.5);
       ctx.fillStyle = '#e8432e'; ctx.beginPath(); ctx.moveTo(gr.x + 2.8, gr.y - 18); ctx.lineTo(gr.x + 13 + wind * 3, gr.y - 15.5 + wv * 0.8); ctx.lineTo(gr.x + 2.8, gr.y - 12); ctx.fill();
     }
+    drawSelRing(t);
     drawKeepers(t, dt);
     const t0 = teePos(0);
     drawGroups(t, dt);
@@ -2891,15 +2949,15 @@ label.auto input { accent-color: var(--turf); }
         ctx.fillStyle = '#fff'; ctx.font = '800 8px Figtree, system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.fillText('!', v.x, v.y - 24);
       }
     }
+    drawOutdoorActors(t);
     drawUmbrellas();
     drawFlags(t);
 
     // ---------- trees on top ----------
     trees.forEach((tr, k) => { if (tr.x + tr.r > V.x0 && tr.x - tr.r < V.x1 && tr.y + tr.r > V.y0 && tr.y - tr.r < V.y1) { if (designing && draftClear.has(k)) ctx.globalAlpha = 0.35; tree(tr); ctx.globalAlpha = 1; } });
     drawFeatures('top');
-    stepFliers(dt, t); drawFliers();
-    drawLand(); drawConnectWarnings(t); drawBuildOverlay(t);
-    if (designing) drawDesignOverlay(t);
+    if (!miniPass) stepFliers(dt, t); drawFliers();
+    drawLand(); if (!miniPass) { drawConnectWarnings(t); drawBuildOverlay(t); if (designing) drawDesignOverlay(t); }
 
     // ---------- sky ----------
     const cl = W_().cloud;
@@ -3159,7 +3217,7 @@ label.auto input { accent-color: var(--turf); }
   const cw = (x, y) => ({ x: x + CDX, y: y + CDY });
 
   // ---- facilities open for business: built and connected to a car park
-  const rangeOK = () => rangeObjs().some(o => o.r && connected('OBJ:' + o.id));
+  const rangeOK = () => rangeObjs().some(o => o.r && connected('OBJ:' + o.id) && facOpen('range:' + o.id));
   const clubOK = () => hasObj('club') && connected('CLUB');
   const courseHoles = () => { let n = 0; while (n < 18 && S.design && S.design.holes[n].built) n++; return n; };
   const courseOK = () => courseHoles() > 0 && !!tee1Tile() && connected('TEE1') && clubOK();
@@ -3179,7 +3237,7 @@ label.auto input { accent-color: var(--turf); }
   // the lot nearest to where they're heading
   function freeSpot(kind) {
     const target = kind === 'range' && hasObj('range') ? NODES.RANGE_E : NODES.ENT;
-    const lots = objs().filter(o => o.type === 'lot' && connected('OBJ:' + o.id)).sort((a, b) => Math.hypot(a.x * TILE - target.x, a.y * TILE - target.y) - Math.hypot(b.x * TILE - target.x, b.y * TILE - target.y));
+    const lots = objs().filter(o => o.type === 'lot' && connected('OBJ:' + o.id) && facOpen('obj:' + o.id)).sort((a, b) => Math.hypot(a.x * TILE - target.x, a.y * TILE - target.y) - Math.hypot(b.x * TILE - target.x, b.y * TILE - target.y));
     for (const o of lots) for (const s of lotSpots(o)) if (!spotsHeld.has(s.key)) { spotsHeld.add(s.key); return s; }
     return null;
   }
@@ -3343,7 +3401,7 @@ label.auto input { accent-color: var(--turf); }
   let amenIn = {};   // object id → visitors inside
   const amenUsers = o => amenIn[o.id] || [];
   function amenOpen(o) {
-    if (!amenOK(o)) return false;
+    if (!amenOK(o) || !facOpen('obj:' + o.id)) return false;
     if (o.type === 'academy') return N('coach') > 0 && S.sup.training > 0;
     return true;
   }
@@ -3384,7 +3442,7 @@ label.auto input { accent-color: var(--turf); }
     if (o) { amenIn[o.id] = (amenIn[o.id] || []).filter(u => u !== v); }
     if (A) {
       const fee = A.fee();
-      if (fee > 0) { earn(fee * spendOf(v), A.cat); moneyPop(v, fee); priceReact(v, ratioOf({ academy: 'lesson', short: 'short', shortc: 'shortc' }[o.type])); }
+      if (fee > 0) { earnV(v, fee * spendOf(v), A.cat); moneyPop(v, fee); priceReact(v, ratioOf({ academy: 'lesson', short: 'short', shortc: 'shortc' }[o.type])); }
       emote(v, A.mood + (o.type === 'academy' && v.type === 'beginner' ? 6 : 0), null, A.lines, 0.5);
       if (o.type === 'academy') v.skill = Math.max(0, v.skill - 0.03);
     }
@@ -3442,6 +3500,8 @@ label.auto input { accent-color: var(--turf); }
                cap: () => L('terrace') ? Math.min(24, 8 + 4 * (L('terrace') - 1)) : 0, open: () => L('terrace') > 0 && L('barRoom') > 0 && N('bar') > 0 && hasFood() && S.wx !== 'rain' && !isDark(),
                dur: () => rnd(24, 32), spend: () => 11 * (1 + 0.15 * (L('terrace') - 1)) * (1 + 0.2 * N('bar')) * (S.wx === 'sunny' ? 1.25 : 1) * incomeMult() },
   };
+  // each room also follows its opening hours
+  for (const [k, Vn] of Object.entries(VENUES)) { const f = Vn.open; Vn.open = () => f() && facOpen('venue:' + k); }
   const LOCKERS = [[948, 1372], [962, 1372], [976, 1372], [948, 1408], [962, 1408], [976, 1408]].map(([x, y]) => ({ x, y }));
   const seatTaken = { shop: [], bar: [], resto: [], terrace: [] };
   function takeSeat(k) {
@@ -3483,9 +3543,10 @@ label.auto input { accent-color: var(--turf); }
     const v = {
       id: visitorId++, plan, step: 0, state: 'drive', car: makeCar(spot), x: 0, y: 0, path: [], pi: 0, at: null,
       color: shirt[Math.floor(Math.random() * shirt.length)], name: newName(), skill: Math.random() * 0.5, strokes: [],
-      bag: plan.includes('course') || plan.includes('range'), holes: L('back9') && Math.random() < p18() ? 18 : Math.min(9, Math.max(1, courseHoles())), didLocker: false, temper: rnd(0.8, 1.3), standing: pickStanding(),
+      bag: plan.includes('course') || plan.includes('range'), holes: L('back9') && facOpen('back9') && Math.random() < p18() ? 18 : Math.min(9, Math.max(1, courseHoles())), didLocker: false, temper: rnd(0.8, 1.3), standing: pickStanding(),
     };
     v.temper *= STANDING[v.standing].temper;
+    v.arrived = { day: S.day, clock: S.clock };
     v.type = forceType || 'regular'; assignHcp(v, forceType); if (v.type === 'member') v.temper *= 1.3;
     v.mood = 65 + (v.standing === 'exemplary' ? 12 : v.standing === 'bad' ? -12 : 0) + rnd(-8, 8);
     conductLog.push(v.standing); if (conductLog.length > 200) conductLog.shift();
@@ -3497,7 +3558,7 @@ label.auto input { accent-color: var(--turf); }
     if (amenFor('short').length && Math.random() < (plan[0] === 'range' ? 0.3 : 0.12)) plan.splice(plan[0] === 'range' ? 1 : 0, 0, 'short');
     // beginners without clubs rent a set, if there is one
     if (v.type === 'beginner' && v.bag && Math.random() < 0.5) {
-      if (rentalsOut < (S.sup ? S.sup.rental : 0)) { rentalsOut++; v.rental = true; earn((S.prices.rental || 0) * spendOf(v), 'shop'); }
+      if (rentalsOut < (S.sup ? S.sup.rental : 0)) { rentalsOut++; v.rental = true; earnV(v, (S.prices.rental || 0) * spendOf(v), 'shop'); }
       else v.mood -= 8;
     }
     visitors.push(v);
@@ -3512,7 +3573,7 @@ label.auto input { accent-color: var(--turf); }
   }
   function startStop(v) {
     const stop = v.plan[v.step];
-    if (stop === 'course' && (isDark() || !courseOK())) return nextStop(v);   // closed for the night, or no course to play
+    if (stop === 'course' && (isDark() || !courseOK() || !facOpen('course'))) return nextStop(v);   // closed for the night, or no course to play
     if (stop === 'range' && !rangeOK()) return nextStop(v);
     if (stop === 'range' && !v.rangeId) { const o = pickRange(); if (!o) return nextStop(v); v.rangeId = o.id; }
     if (stop === 'club' && !clubOK()) return nextStop(v);
@@ -3525,7 +3586,7 @@ label.auto input { accent-color: var(--turf); }
       walkNet(v, v.at, 'OBJ:' + o.id, [spot], joinQueue);
     }
     else if (stop === 'course') {
-      if (L('locker') && !v.didLocker) {
+      if (L('locker') && !v.didLocker && facOpen('venue:locker')) {
         const lk = LOCKERS[Math.floor(Math.random() * LOCKERS.length)];
         walkNet(v, v.at, 'LOBBY', [cw(1135, 1392), cw(1000, 1392), { x: lk.x + CDX + rnd(-3, 3), y: lk.y + CDY + 8 }], () => {
           v.didLocker = true; v.state = 'locker'; v.t = 0; v.dur = rnd(4, 6);
@@ -3592,7 +3653,7 @@ label.auto input { accent-color: var(--turf); }
   }
   function bucketDone(v) {
     filling[v.machine] = null; v.machine = null;
-    earn(bucketPrice() * spendOf(v), 'range'); earn(shopSpend() * spendOf(v), 'shop'); S.buckets = (S.buckets || 0) + 1;
+    earnV(v, bucketPrice() * spendOf(v), 'range'); earnV(v, shopSpend() * spendOf(v), 'shop'); S.buckets = (S.buckets || 0) + 1;
     moneyPop(v, bucketPrice()); priceReact(v, ratioOf('bucket'));
     v.hasBucket = true; v.state = 'queue'; v.patience = PATIENCE.bay() * v.temper; v.grumbled = false;
     if (v.wait > v.patience * 0.5) emote(v, -3, 'annoyed', LINES.finally, 0.4); else v.mood = Math.min(100, moodOf(v) + 2);
@@ -3616,7 +3677,7 @@ label.auto input { accent-color: var(--turf); }
   }
   // course: groups form at the first tee from whoever is waiting
   function serveTee() {
-    if (isDark()) { for (const v of [...teeQueue]) { leaveQueue(v); nextStop(v); } return; }   // the course closes for the night
+    if (isDark() || !facOpen('course')) { for (const v of [...teeQueue]) { leaveQueue(v); nextStop(v); } return; }   // the course closes for the night
     if (!teeQueue.length || playing().length >= slots()) return;
     const first = teeQueue[0];
     const mates = teeQueue.filter(v => v.holes === first.holes).slice(0, 4);
@@ -3624,10 +3685,11 @@ label.auto input { accent-color: var(--turf); }
     if (groups.some(o => o.hole === 0)) return;   // the first tee is still busy
     calm(teeQueue.filter(v => !mates.includes(v)));
     for (const v of mates) if (v.wait > v.patience * 0.5) emote(v, -4, 'annoyed', LINES.finally, 0.35);
-    for (const v of mates) { leaveQueue(v); v.state = 'golf'; earn(shopSpend() * spendOf(v), 'shop'); if (v.type === 'member' || v.eventPlayer || v.paid) continue; payGreenFee(v); }
+    for (const v of mates) { leaveQueue(v); v.state = 'golf'; earnV(v, shopSpend() * spendOf(v), 'shop'); if (v.type === 'member' || v.eventPlayer || v.paid) continue; payGreenFee(v); }
     createGroup(mates, first.holes);
   }
   function finishRound(g) {
+    for (const v of g.players) v.card = g.pars.slice(0, v.strokes.length);
     const end = hPt(g.holes - 1, 1), cart = L('carts') > 0;
     g.players.forEach((v, k) => {
       v.riding = false;
@@ -3651,11 +3713,11 @@ label.auto input { accent-color: var(--turf); }
   const deskSpot = k => cw(1200 + k * 9, 1383);
   function payGreenFee(v) {
     const fee = v.holes === 18 ? fee18() : fee9() * Math.min(9, v.holes) / 9;
-    earn(fee * spendOf(v), 'course'); moneyPop(v, fee); priceReact(v, ratioOf(v.holes === 18 ? 'fee18' : 'fee9'));
+    earnV(v, fee * spendOf(v), 'course'); moneyPop(v, fee); priceReact(v, ratioOf(v.holes === 18 ? 'fee18' : 'fee9'));
     v.paid = true;
   }
   function startCheckin(v) {
-    if (isDark() || !courseOK()) { v.step++; return nextStop(v); }   // no round today: skip the desk and the course
+    if (isDark() || !courseOK() || !facOpen('course')) { v.step++; return nextStop(v); }   // no round today: skip the desk and the course
     walkNet(v, v.at, 'LOBBY', [], () => { v.state = 'queue'; v.wait = 0; v.patience = PATIENCE.checkin() * v.temper; v.grumbled = false; deskQueue.push(v); });
   }
   function serveDesk() {
@@ -3700,7 +3762,7 @@ label.auto input { accent-color: var(--turf); }
     const stocked = useSupply(v.venue === 'shop' ? 'shop' : 'food');
     const vs = stocked ? VENUES[v.venue].spend() * spendOf(v) * (v.venue === 'shop' ? 1 : S.prices.menu) : 0;
     if (!stocked) emote(v, -8, 'annoyed', ['Nothing in stock?', 'Sold out, again.'], 0.6);
-    else { earn(vs, v.venue === 'shop' ? 'shop' : 'food'); moneyPop(v, vs); }
+    else { earnV(v, vs, v.venue === 'shop' ? 'shop' : 'food'); moneyPop(v, vs); }
     if (v.venue === 'shop') S.sales = (S.sales || 0) + 1; else priceReact(v, S.prices.menu);
     { const lvl = { shop: Math.floor(L('shop') / 5), bar: L('barRoom'), resto: L('resto'), terrace: L('terrace') }[v.venue] || 0;
       emote(v, 8 + 2 * lvl + (v.venue === 'terrace' && S.wx === 'sunny' ? 4 : 0), null, LINES[v.venue], 0.4); }
@@ -4021,13 +4083,14 @@ label.auto input { accent-color: var(--turf); }
     v.mood = Math.max(0, Math.min(100, moodOf(v) + delta));
     const k = kind || moodKind(v.mood), p = anchor(v);
     if (k === 'delighted' || k === 'annoyed') v.fx = { kind: k === 'delighted' ? 'cheer' : 'slump', t0: simTime };
+    const said = lines ? pickLine(lines) : null; if (said) v.thought = { text: said, t: simTime };
     if (!p || !onScreen(p.x, p.y) || warp === 0) return;
     bubbles = bubbles.filter(b => b.v !== v);
     // keep it calm: in a crowd, only strong reactions get their own bubble, and only one person speaks at a time nearby
     const crowded = bubbles.some(b => b.t < 2.2 && Math.abs(b.x - p.x) < 16 && Math.abs(b.y - p.y) < 14);
     if ((!crowded || k === 'delighted' || k === 'angry') && bubbles.length < 40) bubbles.push({ v, kind: k, t: 0, x: p.x, y: p.y, dx: crowded ? 12 : 0 });
     const talking = speech.some(sp => Math.abs(sp.x - p.x) < 60 && Math.abs(sp.y - p.y) < 30);
-    if (lines && !talking && Math.random() < chance && speech.length < 6 && cam.s > 0.7) speech.push({ v, text: pickLine(lines), t: 0, x: p.x, y: p.y });
+    if (lines && !talking && Math.random() < chance && speech.length < 6 && cam.s > 0.7) speech.push({ v, text: said, t: 0, x: p.x, y: p.y });
   }
   // when someone leaves, how they felt feeds the club's reputation; reputation brings more (or fewer) golfers
   function recordMood(v) {
@@ -4116,7 +4179,7 @@ label.auto input { accent-color: var(--turf); }
       if (hot) d += 0.025 * Math.pow(0.75, irr);                         // drying out in the summer sun
       if (sea === 'winter') d *= 0.5;
       d += 0.012 * (onHole[i] || 0);                                     // foot traffic
-      const grow = sea === 'spring' ? 0.008 : sea === 'winter' ? 0.001 : 0.004;
+      const grow = (sea === 'spring' ? 0.008 : sea === 'winter' ? 0.001 : 0.004) * (facShut('course') ? 3 : 1);   // a closed course rests
       S.turf[i] = Math.max(0, Math.min(100, S.turf[i] - d * dt + grow * dt));
     }
     // greenkeepers drive to the most worn hole and mow and repair it
@@ -4174,7 +4237,7 @@ label.auto input { accent-color: var(--turf); }
   // members pay monthly, play for free and come back often
   let memberAcc = 0;
   const memberCap = () => 14 * slots();
-  const memberDemand = () => isDark() || isFrost() || eventRunning() || !courseOK() ? 0 : (S.members || 0) / (3 * DAY_LEN) * (0.5 + 0.5 * seasonDemand()) * (S.wx === 'rain' ? 0.4 : 1);
+  const memberDemand = () => isDark() || isFrost() || eventRunning() || !courseOK() || !facOpen('course') ? 0 : (S.members || 0) / (3 * DAY_LEN) * (0.5 + 0.5 * seasonDemand()) * (S.wx === 'rain' ? 0.4 : 1);
   function membersTick(dt) {
     if (S.members > 0) earn(S.members * S.prices.member / (MONTH_DAYS * DAY_LEN) * dt, 'members');
     memberAcc += memberDemand() * dt;
@@ -5184,7 +5247,9 @@ label.auto input { accent-color: var(--turf); }
     if (tab === 'range' && !selRange()) { $('list').innerHTML = '<p class="hint" style="padding:8px 4px">You have no driving range yet. Place one on the Build tab.</p>'; return; }
     const pick = tab === 'range' && rangeObjs().length > 1 ? `<div class="seg wrap" id="rangePick">${rangeObjs().map(o => `<button type="button" data-rpick="${o.id}">${rangeName(o)}</button>`).join('')}</div>` : '';
     const note = tab === 'staff' ? '<p class="hint" style="padding:4px 2px">Range attendants and ball pickers are hired for each range, on the Build → Range tab.</p>' : '';
-    $('list').innerHTML = pick + note + (cats ? cats.map(([h, ids]) => `<div class="subhead">${h}</div>` + ids.map(id => rowHtml(byId[id])).join('')).join('') : '');
+    const facRows = tab === 'range' ? facList().filter(x => x.key === 'range:' + selRange().id).map(facRowHtml).join('')
+      : tab === 'club' ? (() => { const l = facList().filter(x => x.key.startsWith('venue:')); return l.length ? `<div class="subhead">Open or closed</div><div class="fac-inline">${l.map(facRowHtml).join('')}</div>` : ''; })() : '';
+    $('list').innerHTML = pick + note + (facRows ? `<div class="fac-inline">${facRows}</div>` : '') + (cats ? cats.map(([h, ids]) => `<div class="subhead">${h}</div>` + ids.map(id => rowHtml(byId[id])).join('')).join('') : '');
     refreshList();
   }
   // =====================================================================================
@@ -5703,7 +5768,9 @@ label.auto input { accent-color: var(--turf); }
   };
   let selHole = 0;
   let sheetOpen = false;
+  const narrow = () => window.matchMedia('(max-width: 899px)').matches;
   function openPanel(k) {
+    if (narrow() && insp) closeInspector();   // on a phone, one panel at a time
     if (k === 'park') k = 'park:' + (['goals', 'events', 'rival', 'awards'].includes(parkSub) ? parkSub : 'goals');
     const w = WIN_ORDER.find(x => WINDOWS[x].tabs.some(t => t[0] === k)); if (!w) return;
     const [t, sub] = k.split(':');
@@ -5714,13 +5781,15 @@ label.auto input { accent-color: var(--turf); }
     const tabs = WINDOWS[w].tabs;
     $('winTabs').innerHTML = tabs.length > 1 ? tabs.map(([key, label]) => `<button class="win-tab" type="button" role="tab" data-wtab="${key}" aria-selected="${key === k}">${label}</button>`).join('') : '';
     const upg = ['place', 'range', 'club', 'course', 'staff', 'supplies', 'hcp'].includes(t);
-    $('list').hidden = !upg; $('teesheet').hidden = t !== 'tee'; $('parkPanel').hidden = t !== 'park'; $('finPanel').hidden = t !== 'fin';
+    $('list').hidden = !upg; $('teesheet').hidden = t !== 'tee'; $('parkPanel').hidden = t !== 'park'; $('finPanel').hidden = t !== 'fin'; $('hoursPanel').hidden = t !== 'hours'; $('peoplePanel').hidden = t !== 'people' && t !== 'crew'; $('peoplePanel')._h = null;
     $('parkPanel').dataset.sub = parkSub;
     document.querySelectorAll('.toolbar .tab').forEach(x => x.setAttribute('aria-selected', x.dataset.tab === w));
     if (upg) buildList();
     if (t === 'tee') renderTeeSheet();
     if (t === 'fin') renderFinance('build');
     if (t === 'park') { renderPark(); refreshStats(); }
+    if (t === 'hours') renderHours();
+    if (t === 'people' || t === 'crew') renderPeople();
     $('sheet').querySelector('.sheet-body').scrollTop = 0;
     measurePads();
     if (FOCUS[t] && !(t === 'range' && !selRange()) && !(t === 'course' && !(designing ? draft : S.design).holes[selHole].placed)) glideTo(...(designing && t === 'course' ? withGeo(draftGeo, () => FOCUS[t]()) : FOCUS[t]())); else clampCam();
@@ -5743,6 +5812,9 @@ label.auto input { accent-color: var(--turf); }
       staff: `${staffCount()} employed · wages ${fmt(wagesPerDay())} a day`,
       tee: `${playing().length} of ${slots()} tee time${slots() === 1 ? '' : 's'} in use · ${teeQueue.length} waiting`,
       fin: `${dateLabel()} · ${season()[0].toUpperCase() + season().slice(1)}`,
+      hours: (() => { const l = facList(), c = l.filter(x => !facOpen(x.key)).length; return l.length ? `${l.length - c} open · ${c} closed right now · ${clock(S.clock)}` : 'Nothing to open or close yet'; })(),
+      people: `${visitors.filter(v => v.state !== 'gone' && v.state !== 'drive').length} golfers in the park · tap anyone to find them`,
+      crew: `${staffCount()} employed · tap anyone to find them`,
       park: parkSub === 'guests' ? `${visitors.filter(v => v.state !== 'gone').length} golfers in the park` : `${clubName()} · ${starText(starsC)}${S.trophies ? ` · ${S.trophies} troph${S.trophies === 1 ? 'y' : 'ies'}` : ''}`,
     }[tab];
     if ($('sheetSub').textContent !== sub) $('sheetSub').textContent = sub;
@@ -5864,9 +5936,9 @@ label.auto input { accent-color: var(--turf); }
       const w = toWorld(e.clientX, e.clientY), hi = designing ? -1 : holeAt(w.x, w.y);
       if (tool) buildTap(w.x, w.y);
       else if (designing) designTap(w.x, w.y);
-      else if (hi >= 0) { selectHole(hi); Sound.ui('select'); }
-      else { const ent = entityAt(w.x, w.y), bld = ent ? null : buildingAt(w.x, w.y);
+      else { const ent = entityAt(w.x, w.y), bld = ent || hi >= 0 ? null : buildingAt(w.x, w.y);
         if (ent) inspect(ent);
+        else if (hi >= 0) { selectHole(hi); Sound.ui('select'); }
         else if (bld) { openPanel(bld); Sound.ui('open'); }
         else if (e.pointerType !== 'mouse') tapInfo(e.clientX, e.clientY); }
     }
@@ -6472,10 +6544,10 @@ label.auto input { accent-color: var(--turf); }
   const WINDOWS = {
     build: { title: 'Build', tabs: [['place', 'Build'], ['range', 'Range'], ['club', 'Clubhouse'], ['supplies', 'Supplies']] },
     course: { title: 'Golf course', tabs: [['course', 'Holes']] },
-    staff: { title: 'Staff', tabs: [['staff', 'Staff']] },
-    golfers: { title: 'Golfers', tabs: [['tee', 'On the course'], ['hcp', 'Handicaps'], ['park:guests', 'Park overview']] },
+    staff: { title: 'Staff', tabs: [['staff', 'Hire'], ['crew', 'On duty']] },
+    golfers: { title: 'Golfers', tabs: [['tee', 'On the course'], ['people', 'Who’s here'], ['hcp', 'Handicaps'], ['park:guests', 'Park overview']] },
     fin: { title: 'Finances', tabs: [['fin', 'Finances']] },
-    park: { title: 'Your club', tabs: [['park:goals', 'Goals'], ['park:events', 'Events'], ['park:rival', 'Rival'], ['park:awards', 'Awards']] },
+    park: { title: 'Your club', tabs: [['park:goals', 'Goals'], ['hours', 'Opening hours'], ['park:events', 'Events'], ['park:rival', 'Rival'], ['park:awards', 'Awards']] },
   };
   const WIN_ORDER = ['build', 'course', 'staff', 'golfers', 'fin', 'park'];
   let curWin = null, parkSub = 'goals';
@@ -6491,56 +6563,484 @@ label.auto input { accent-color: var(--turf); }
     openPanel(t[(i + dir + t.length) % t.length][0]); Sound.ui('tap');
   }
 
-  // ---- the inspector: click a golfer, marshal or greenkeeper to camFollow them
-  let insp = null, camFollow = false;
+  // =====================================================================================
+  // Opening hours. Every facility can be open, closed, or open between set hours. Closed
+  // things take no new golfers and cost about a third to run; a closed course rests, so
+  // its turf recovers three times faster. Anyone already inside finishes what they started.
+  // =====================================================================================
+  let facFocus = null;
+  function facOpen(key) {
+    const f = S.fac && S.fac[key]; if (!f) return true;
+    if (f.shut) return false;
+    if (f.from == null) return true;
+    const h = hour(); return f.from < f.to ? h >= f.from && h < f.to : h >= f.from || h < f.to;
+  }
+  const facShut = key => !!(S.fac && S.fac[key] && S.fac[key].shut);
+  // running costs scale with the share of the day it's open; a closed facility still costs a third
+  function facShare(key) {
+    const f = S.fac && S.fac[key]; if (!f) return 1; if (f.shut) return 0.35; if (f.from == null) return 1;
+    const hrs = f.from < f.to ? f.to - f.from : 24 - f.from + f.to; return 0.35 + 0.65 * hrs / 24;
+  }
+  const hh = h => String(h % 24).padStart(2, '0') + ':00';
+  const VENUE_FAC = { shop: 'Pro shop', resto: 'Restaurant', bar: 'Bar', terrace: 'Terrace', locker: 'Locker rooms' };
+  // everything that can be opened or closed, grouped for the Opening hours tab
+  function facList() {
+    const out = [], add = (group, key, label, note, icon) => out.push({ group, key, label, note, icon });
+    if (courseHoles() > 0) add('Golf course', 'course', 'Golf course', 'Close it to rest the turf: it recovers three times faster. Groups already out finish their round.', 'course');
+    if (L('back9')) add('Golf course', 'back9', 'Back nine', 'While it is closed everyone plays nine holes, so rounds are quicker.', 'course');
+    for (const o of rangeObjs()) add('Driving ranges', 'range:' + o.id, rangeObjs().length > 1 ? rangeName(o) : 'Driving range', 'Golfers already hitting finish their bucket.', 'range');
+    if (hasObj('club')) {
+      add('Clubhouse', 'venue:shop', 'Pro shop', 'The check-in desk stays open either way.', 'shop');
+      if (L('resto')) add('Clubhouse', 'venue:resto', 'Restaurant', '', 'resto');
+      if (L('barRoom')) add('Clubhouse', 'venue:bar', 'Bar', '', 'bar');
+      if (L('terrace')) add('Clubhouse', 'venue:terrace', 'Terrace', 'Also needs the bar to be open.', 'terrace');
+      if (L('locker')) add('Clubhouse', 'venue:locker', 'Locker rooms', 'Golfers change here before a round.', 'locker');
+    }
+    const num = {};
+    for (const o of objs()) {
+      if (!['putt', 'short', 'academy', 'shortc', 'hut', 'lot'].includes(o.type)) continue;
+      const many = objs().filter(x => x.type === o.type).length > 1; num[o.type] = (num[o.type] || 0) + 1;
+      add(o.type === 'lot' ? 'Car parks' : 'Practice and amenities', 'obj:' + o.id, OBJ[o.type].label + (many ? ' ' + num[o.type] : ''), o.type === 'lot' ? 'Cars already parked can still leave.' : o.type === 'hut' ? 'Golfers buy food and drink here during a round.' : '', o.type);
+    }
+    return out;
+  }
+  // how busy it is right now
+  function facUse(key) {
+    const [k, id] = key.split(':');
+    if (k === 'course') return groups.reduce((a, g) => a + g.players.length, 0) + teeQueue.length;
+    if (k === 'range') { const o = objById(+id); return o && o.r ? withRange(o, () => range.length + bucketQueue.length + rangeQueue.length) : 0; }
+    if (k === 'venue') return id === 'locker' ? visitors.filter(v => v.state === 'locker').length : seatTaken[id] ? seatTaken[id].filter(Boolean).length : 0;
+    if (k === 'obj') { const o = objById(+id); if (!o) return 0; if (o.type === 'lot') return lotSpots(o).filter(s => spotsHeld.has(s.key)).length; return amenUsers(o).length + (amenQ[o.id] || []).length; }
+    return 0;
+  }
+  function facStatus(key) {
+    const f = S.fac && S.fac[key], open = facOpen(key), use = facUse(key), k = key.split(':')[0];
+    const unit = k === 'obj' && objById(+key.split(':')[1])?.type === 'lot' ? 'cars' : 'golfers';
+    const inUse = use ? ` · ${use} ${use === 1 ? unit.slice(0, -1) : unit}` : '';
+    if (f && f.shut) return { open: false, text: (key === 'course' ? 'Closed · resting the turf' : 'Closed') + inUse };
+    if (!open) return { open: false, text: `Closed · opens at ${hh(f.from)}` + inUse };
+    if (key === 'course' && isDark()) return { open: false, text: 'Closed for the night' + inUse };
+    return { open: true, text: (f && f.from != null ? `Open until ${hh(f.to)}` : 'Open') + inUse };
+  }
+  function setFac(key, patch) {
+    S.fac ||= {};
+    const f = { ...(S.fac[key] || {}), ...patch };
+    if (!f.shut && f.from == null) delete S.fac[key]; else S.fac[key] = f;
+    csCache = null; Sound.ui(patch.shut ? 'soft' : 'tap'); save();
+  }
+  const FAC_IC = { course: 'M7 21V3l10 4-10 4', range: 'M4 20h16M6 20V9l6-5 6 5v11', shop: 'M5 8h14l-1 12H6zM9 8V6a3 3 0 0 1 6 0v2', resto: 'M7 3v8a2 2 0 0 0 2 2v8M7 3v6M11 3v6M17 3c-2 2-2 6 0 8v10', bar: 'M6 4h12l-6 8zM12 12v8M8 20h8', terrace: 'M3 10l9-6 9 6zM12 10v11M8 21h8', locker: 'M5 3h14v18H5zM12 3v18M9 9v2M15 9v2', putt: 'M12 18V4l7 3-7 3', short: 'M4 18c4-6 12-6 16 0M12 12V4l6 3-6 3', academy: 'M2 9l10-5 10 5-10 5zM6 11v5c3 2 9 2 12 0v-5', shortc: 'M5 19V5l6 3-6 3M14 19c2-3 5-3 7 0', hut: 'M4 11l8-7 8 7M6 10v10h12V10', lot: 'M6 20V4h7a4 4 0 0 1 0 8H6' };
+  const facIcon = k => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="${FAC_IC[k] || FAC_IC.course}"/></svg>`;
+  function facRowHtml(it) {
+    const f = (S.fac && S.fac[it.key]) || {}, mode = f.shut ? 'shut' : f.from != null ? 'hours' : 'open', st = facStatus(it.key);
+    const opts = sel => Array.from({ length: 25 }, (_, h) => `<option value="${h}" ${h === sel ? 'selected' : ''}>${hh(h === 24 ? 24 : h).replace('00:00', h === 24 ? '24:00' : '00:00')}</option>`).join('');
+    return `<div class="fac${facFocus === it.key ? ' focus' : ''}" data-fac="${it.key}">
+      <div class="fac-top"><span class="fac-ic">${facIcon(it.icon)}</span><div class="fac-t"><b>${it.label}</b><span class="fac-st ${st.open ? 'open' : 'shut'}">${st.text}</span></div></div>
+      <div class="seg fac-mode">${[['open', 'Open'], ['hours', 'Set hours'], ['shut', 'Closed']].map(([m, l]) => `<button type="button" data-fmode="${m}" aria-pressed="${m === mode}">${l}</button>`).join('')}</div>
+      ${mode === 'hours' ? `<div class="fac-hours">Open from <select data-fh="from">${opts(f.from)}</select> to <select data-fh="to">${opts(f.to)}</select></div>` : ''}
+      ${it.note ? `<p class="fac-note">${it.note}</p>` : ''}</div>`;
+  }
+  function hoursHtml() {
+    const list = facList();
+    if (!list.length) return '<p class="hint" style="padding:8px 4px">Nothing to open or close yet. Build a range, a course or a clubhouse first.</p>';
+    const groupsOf = [...new Set(list.map(x => x.group))], shut = list.filter(x => !facOpen(x.key)).length;
+    return `<div class="fac-head"><p>Close anything you like, or give it opening hours. Closed facilities take no new golfers and cost about a third to run. ${shut ? `<b>${shut} closed right now.</b>` : ''}</p>
+      <button type="button" class="ghost" id="facAllOpen" ${S.fac && Object.keys(S.fac).length ? '' : 'disabled'}>Open everything</button></div>` +
+      groupsOf.map(g => `<div class="subhead">${g}</div>` + list.filter(x => x.group === g).map(facRowHtml).join('')).join('');
+  }
+  function renderHours() { if (!sheetOpen || tab !== 'hours') return; $('hoursPanel').innerHTML = hoursHtml(); focusFac(); }
+  function focusFac() {
+    if (!facFocus) return;
+    const el = document.querySelector(`.fac[data-fac="${facFocus}"]`); if (el) { el.scrollIntoView({ block: 'center' }); setTimeout(() => { el.classList.remove('focus'); }, 1800); }
+    facFocus = null;
+  }
+  function refreshFac() {
+    for (const el of document.querySelectorAll('.fac[data-fac]')) {
+      const st = facStatus(el.dataset.fac), s = el.querySelector('.fac-st');
+      if (s && s.textContent !== st.text) { s.textContent = st.text; s.className = 'fac-st ' + (st.open ? 'open' : 'shut'); }
+    }
+  }
+  $('sheet').addEventListener('click', e => {
+    const b = e.target.closest('[data-fmode]');
+    if (b) {
+      const row = b.closest('[data-fac]'), key = row.dataset.fac, m = b.dataset.fmode, f = (S.fac && S.fac[key]) || {};
+      if (m === 'open') setFac(key, { shut: false, from: null, to: null });
+      else if (m === 'shut') setFac(key, { shut: true });
+      else setFac(key, { shut: false, from: f.from ?? 8, to: f.to ?? 20 });
+      const it = facList().find(x => x.key === key); if (it) row.outerHTML = facRowHtml(it);
+      if (tab === 'hours') { const h = $('facAllOpen'); if (h) h.disabled = !(S.fac && Object.keys(S.fac).length); }
+      return;
+    }
+    if (e.target.closest('#facAllOpen')) { S.fac = {}; Sound.chime(); save(); renderHours(); toast('Opening hours', 'Everything is open', 'All facilities are open all day again.', '✓'); }
+  });
+  $('sheet').addEventListener('change', e => {
+    const s = e.target.closest('[data-fh]'); if (!s) return;
+    const key = s.closest('[data-fac]').dataset.fac; setFac(key, { [s.dataset.fh]: +s.value });
+    refreshFac();
+  });
+  // a sign in the world on anything that's closed
+  function closedSign(x, y, text, t) {
+    const w = 6 + text.length * 4.1;
+    ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(x - w / 2 + 1.5, y - 15 + 1.5, w, 9);
+    ctx.fillStyle = '#5a4630'; ctx.fillRect(x - w / 2 + 2, y - 7, 1.4, 7); ctx.fillRect(x + w / 2 - 3.4, y - 7, 1.4, 7);
+    ctx.fillStyle = '#c8322a'; ctx.fillRect(x - w / 2, y - 15, w, 9);
+    ctx.fillStyle = '#fff'; ctx.font = '800 6.5px Figtree, system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.fillText(text, x, y - 8.4);
+  }
+  function drawClosedSigns(t) {
+    if (!S.fac || !Object.keys(S.fac).length) return;
+    for (const o of rangeObjs()) if (!facOpen('range:' + o.id)) { const d = doorOf(o), p = tileC(d.tx, d.ty); if (vis(p.x - 30, p.y - 30, p.x + 30, p.y + 10)) closedSign(p.x, p.y, 'RANGE CLOSED', t); }
+    if (courseHoles() > 0 && !facOpen('course')) { const p = teePos(0); if (vis(p.x - 40, p.y - 30, p.x + 40, p.y + 20)) closedSign(p.x - 18, p.y + 16, 'COURSE CLOSED', t); }
+    for (const o of objs()) {
+      if (!['putt', 'short', 'academy', 'shortc', 'hut', 'lot'].includes(o.type) || facOpen('obj:' + o.id)) continue;
+      const f = fp(o), cx = (f.x + f.w / 2) * TILE, cy = (f.y + f.h) * TILE - 4;
+      if (vis(cx - 30, cy - 20, cx + 30, cy + 10)) closedSign(cx, cy, 'CLOSED', t);
+    }
+    if (hasObj('club')) for (const [k, label] of Object.entries(VENUE_FAC)) {
+      if (k === 'shop' ? false : k === 'resto' ? !L('resto') : k === 'bar' ? !L('barRoom') : k === 'terrace' ? !L('terrace') : !L('locker')) continue;
+      if (facOpen('venue:' + k)) continue;
+      const r = ROOMS[k === 'shop' ? 'lobby' : k]; if (!r) continue;
+      const cx = (r.x0 + r.x1) / 2 + CDX, cy = (r.y0 + r.y1) / 2 + CDY;
+      if (!vis(r.x0 + CDX, r.y0 + CDY, r.x1 + CDX, r.y1 + CDY)) continue;
+      ctx.fillStyle = 'rgba(20,20,20,0.28)'; ctx.fillRect(r.x0 + CDX, r.y0 + CDY, r.x1 - r.x0, r.y1 - r.y0);
+      closedSign(cx, cy + 6, label.toUpperCase() + ' CLOSED', t);
+    }
+  }
+
+  // =====================================================================================
+  // Staff you can click: walkers who are simulated (marshals, greenkeepers, pickers) and
+  // the ones who work in one spot (attendants, shop, kitchen, bar, starter, teaching pro).
+  // =====================================================================================
+  UNIFORM.owner = { shirt: '#7a1f2b', hat: null, bottom: '#2b2f36', legs: 'trousers' };
+  UNIFORM.starter = { shirt: '#14365a', hat: 'cap', hatC: '#14365a', bottom: '#8a7a5a', legs: 'trousers' };
+  UNIFORM.coach = { shirt: '#ffffff', hat: 'visor', hatC: '#2c4a6e', bottom: '#2c3a52', legs: 'trousers' };
+  const ROLE = {
+    owner: 'Club manager (you)', shop: 'Shop assistant', chef: 'Chef', bar: 'Bartender', attend: 'Range attendant', picker: 'Ball picker',
+    marshal: 'Marshal', keeper: 'Greenkeeper', starter: 'Starter', coach: 'Teaching pro',
+  };
+  const staffNames = new Map();
+  function staffName(key) {
+    let n = staffNames.get(key); if (n) return n;
+    let h = 7; for (const c of String(key)) h = (h * 31 + c.charCodeAt(0)) % 2147483647;
+    const r = seeded(h || 1); r();
+    n = FIRST[Math.floor(r() * FIRST.length)] + '. ' + LAST[Math.floor(r() * LAST.length)]; staffNames.set(key, n); return n;
+  }
+  const actors = new Map();
+  function actor(key, role, idx) { let a = actors.get(key); if (!a) actors.set(key, a = { key, role, idx, x: 0, y: 0, ang: Math.PI / 2, walk: null, actor: true, name: staffName(key) }); a.live = true; return a; }
+  function updateActors(t) {
+    for (const a of actors.values()) a.live = false;
+    forRanges(o => {
+      const n = Math.min(6, N('attend'));
+      for (let k = 0; k < n; k++) {
+        const a = actor(`attend:${o.id}:${k}`, 'attend', k), span = rangeX1() - RX0 - 32, ph = t * 0.3 + k * 2.1, vx = Math.cos(ph);
+        a.x = RX0 + 16 + span * (0.5 + 0.5 * Math.sin(ph)); a.y = TEE_Y + 18; a.ang = vx > 0 ? 0 : Math.PI; a.walk = Math.abs(vx) > 0.08 ? a.x * 0.55 : null;
+        a.rangeId = o.id; a.look = staffLook('attend', o.id * 10 + k);
+      }
+    });
+    if (hasObj('club')) {
+      for (let k = 0; k < Math.min(3, N('assist') + 1); k++) { const a = actor(`shop:${k}`, k ? 'shop' : 'owner', k); a.x = 1210 + k * 8 + CDX; a.y = 1372 + CDY; a.walk = null; a.ang = Math.PI / 2; a.look = staffLook(k ? (k === 1 ? 'shop' : 'shop2') : 'owner', k); }
+      if (L('resto')) for (let k = 0; k < Math.min(2, N('chef')); k++) {
+        const a = actor(`chef:${k}`, 'chef', k), ph = t * 0.5 + k * 2, vx = Math.cos(ph);
+        a.x = 1013 + Math.sin(ph) * 5 + CDX; a.y = 1396 + k * 14 + CDY; a.ang = vx > 0 ? 0 : Math.PI; a.walk = Math.abs(vx) > 0.2 ? a.x * 0.6 : null; a.look = staffLook('chef', k);
+      }
+      if (L('barRoom')) for (let k = 0; k < Math.min(2, N('bar')); k++) { const a = actor(`bar:${k}`, 'bar', k); a.x = 1262 + k * 26 + Math.sin(t * 0.25 + k) * 6 + CDX; a.y = 1361 + CDY; a.walk = null; a.ang = Math.PI / 2; a.look = staffLook('bar', k); }
+    }
+    if (N('starter') > 0 && courseHoles() > 0 && tee1Tile()) {
+      const tp = teePos(0);
+      for (let k = 0; k < Math.min(2, N('starter')); k++) { const a = actor(`starter:${k}`, 'starter', k); a.x = tp.x - 16 - k * 10; a.y = tp.y + 13; a.walk = null; a.ang = Math.PI / 2; a.look = staffLook('starter', k); }
+    }
+    const ac = objs().find(o => o.type === 'academy');
+    if (ac) {
+      const f = fp(ac), px = f.x * TILE, py = f.y * TILE;
+      for (let k = 0; k < Math.min(3, N('coach')); k++) { const a = actor(`coach:${k}`, 'coach', k); a.x = px + 14 + k * 18 + 8; a.y = py + 37; a.walk = null; a.ang = Math.PI; a.look = staffLook('coach', k); a.academy = ac; }
+    }
+    for (const [k, a] of actors) if (!a.live) actors.delete(k);
+  }
+  const actorsOf = role => [...actors.values()].filter(a => a.role === role);
+  // starter and teaching pros are drawn with everyone else outside
+  function drawOutdoorActors(t) {
+    for (const a of actors.values()) {
+      if (a.role !== 'starter' && a.role !== 'coach') continue;
+      if (!vis(a.x - 12, a.y - 24, a.x + 12, a.y + 8)) continue;
+      const busy = a.role === 'coach' && a.academy && amenUsers(a.academy).some(u => u.amenSlot === a.idx && u.state === 'amen');
+      drawPerson(a.x, a.y, a.look, busy ? { act: 'wave', k: (t * 0.4) % 1, scale: 1.12 } : { ang: a.role === 'coach' ? Math.PI / 2 : Math.PI / 2, scale: 1.12, look: Math.sin(t * 0.5 + a.idx) });
+      if (a.role === 'starter') { ctx.fillStyle = '#f4f1ea'; ctx.fillRect(a.x + 2.6, a.y - 9.5, 3, 3.8); ctx.fillStyle = '#5a4630'; ctx.fillRect(a.x + 2.6, a.y - 9.9, 3, 0.8); }
+    }
+  }
+  // everyone on the payroll who is out and about
+  function staffRoster() {
+    const out = [];
+    for (const a of actors.values()) if (a.role === 'owner') out.push({ kind: 'staff', role: 'owner', o: a });
+    for (const m of marshals) { m.name ||= staffName('marshal:' + m.id); out.push({ kind: 'staff', role: 'marshal', o: m }); }
+    for (const k of keepers) { k.name ||= staffName('keeper:' + k.id); out.push({ kind: 'staff', role: 'keeper', o: k }); }
+    forRanges(r => pickers.forEach((p, i) => { p.name ||= staffName(`picker:${r.id}:${i}`); p.rangeId = r.id; p.idx = i; out.push({ kind: 'staff', role: 'picker', o: p }); }));
+    for (const a of actors.values()) if (a.role !== 'owner') out.push({ kind: 'staff', role: a.role, o: a });
+    return out;
+  }
+  const ROLE_ORDER = ['owner', 'starter', 'marshal', 'keeper', 'attend', 'picker', 'shop', 'coach', 'chef', 'bar'];
+
+  // =====================================================================================
+  // The detail panel: click anyone to see who they are, what they're doing and a live
+  // camera on them, with buttons to follow them or jump the main view there.
+  // =====================================================================================
+  let insp = null, camFollow = false, miniPass = false;
+  const lookFor = e => e.kind === 'golfer' ? lookOf(e.o) : e.o.look || staffLook(e.role === 'marshal' ? 'marshal' : e.role === 'keeper' ? 'keeper' : 'picker', e.o.id || 0);
+  function staffEntity(o) {
+    if (marshals.includes(o)) return { kind: 'staff', role: 'marshal', o };
+    if (keepers.includes(o)) return { kind: 'staff', role: 'keeper', o };
+    if (o.actor) return { kind: 'staff', role: o.role, o };
+    return { kind: 'staff', role: 'picker', o };
+  }
   function entityAt(wx, wy) {
-    const r = 12 / Math.max(0.6, Math.min(1.6, cam.s));
-    for (const m of marshals) if (Math.hypot(m.x - wx, m.y - 4 - wy) < r) return { kind: 'marshal', o: m };
+    const r = 13 / Math.max(0.6, Math.min(1.8, cam.s));
     let best = null, bd = r;
-    for (const v of visitors) { if (v.state === 'drive' || v.state === 'gone') continue; const d = Math.hypot(v.x - wx, v.y - 4 - wy); if (d < bd) { bd = d; best = v; } }
-    if (best) return { kind: 'golfer', o: best };
-    for (const k of keepers) if (Math.hypot(k.x - wx, k.y - wy) < r + 4) return { kind: 'keeper', o: k };
-    return null;
+    const consider = (e, x, y, extra = 0) => { const d = Math.hypot(x - wx, y - wy) - extra; if (d < bd) { bd = d; best = e; } };
+    for (const m of marshals) consider({ kind: 'staff', role: 'marshal', o: m }, m.x, m.y - (m.cart ? 0 : 7), m.cart ? 3 : 0);
+    for (const k of keepers) consider({ kind: 'staff', role: 'keeper', o: k }, k.x, k.y, 4);
+    for (const a of actors.values()) consider({ kind: 'staff', role: a.role, o: a }, a.x, a.y - 7);
+    forRanges(rg => pickers.forEach((p, i) => { p.rangeId = rg.id; p.idx = i; consider({ kind: 'staff', role: 'picker', o: p }, p.x, p.y - (i < L('cart') ? 0 : 7), i < L('cart') ? 4 : 0); }));
+    for (const v of visitors) { if (v.state === 'drive' || v.state === 'gone') continue; consider({ kind: 'golfer', o: v }, v.x, v.y - (v.riding || v.cart ? 0 : 7)); }
+    return best;
   }
   function entityAlive(e) {
-    if (e.kind === 'marshal') return marshals.includes(e.o);
-    if (e.kind === 'keeper') return keepers.includes(e.o);
-    return visitors.includes(e.o) && e.o.state !== 'gone';
-  }
-  function inspectHtml(e) {
     const o = e.o;
-    if (e.kind === 'keeper') return `<b>Greenkeeper</b><br>${o.hole >= 0 ? `${o.state === 'mow' ? 'Mowing and repairing' : 'Driving to'} hole ${o.hole + 1}<div class="bar"><em style="width:${turfOf(o.hole)}%;background:#3fae5f"></em></div>Turf ${Math.round(turfOf(o.hole))}%` : 'Every hole is in good shape. Waiting for work.'}`;
-    return hoverHtml(o.x, o.y - 4, o) || `<b>${o.name || 'Golfer'}</b><br>Heading home`;
+    if (e.kind === 'golfer') return visitors.includes(o) && o.state !== 'gone' && o.state !== 'drive';
+    if (e.role === 'marshal') return marshals.includes(o);
+    if (e.role === 'keeper') return keepers.includes(o);
+    if (e.role === 'picker') return [...RT.values()].some(x => x.pickers.includes(o)) || pickers.includes(o);
+    return actors.get(o.key) === o;
+  }
+  const clock = c => { const m = Math.floor((c / DAY_LEN) * 24 * 60); return `${String(Math.floor(m / 60) % 24).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`; };
+  const STEP_LABEL = { range: 'Driving range', course: 'Round of golf', club: 'Clubhouse', checkin: 'Check in', putt: 'Putting green', short: 'Short game', lesson: 'Lesson', shortc: 'Short course' };
+  const WALK_TO = { range: 'the driving range', course: 'the first tee', club: 'the clubhouse', checkin: 'the clubhouse to check in', putt: 'the putting green', short: 'the short game area', lesson: 'the academy', shortc: 'the short course' };
+  const AMEN_DOING = { putt: 'Practising putts on the putting green', short: 'Chipping at the short game area', academy: 'Having a lesson at the academy', shortc: 'Playing the short course' };
+  function doingOf(v) {
+    const g = groupOf(v);
+    if (g) {
+      const b = g.phase === 'play' ? g.balls.get(v) : null, pin = pinPos(g.hole);
+      if (g.shot && g.shot.v === v) return `Playing a ${g.shot.kind === 'putt' ? 'putt' : g.shot.kind === 'chip' ? 'chip' : 'shot'} on hole ${g.hole + 1}`;
+      if (!b) return `${v.riding ? 'Driving' : 'Walking'} to the ${g.hole + 1}${['st', 'nd', 'rd'][g.hole] || 'th'} tee`;
+      if (b.lie === 'holed') return b.pickedUp ? `Picked up on hole ${g.hole + 1}` : `Holed out in ${b.strokes} on hole ${g.hole + 1}`;
+      return `Hole ${g.hole + 1}: ${b.strokes ? `${b.strokes} shot${b.strokes > 1 ? 's' : ''}, ` : ''}${['green', 'fringe', 'fairway', 'tee'].includes(b.lie) ? 'on' : 'in'} the ${LIE[b.lie].label}, ${yd(Math.hypot(pin.x - b.x, pin.y - b.y))} yd to the pin`;
+    }
+    const next = STEP_LABEL[v.plan[v.step]] || 'the car park', to = WALK_TO[v.plan[v.step]] || 'the car park';
+    if (v.ejected) return 'Being sent home by a marshal';
+    switch (v.state) {
+      case 'walk': return v.cart ? 'Riding a cart back from the last green' : v.step >= v.plan.length ? 'Walking back to the car' : `Walking to ${to}`;
+      case 'queue': return deskQueue.includes(v) ? 'Waiting at the check-in desk' : teeQueue.includes(v) ? 'Waiting for a tee time' : bucketQueue.includes(v) ? 'Waiting for a bucket of balls' : rangeQueue.includes(v) ? 'Waiting for a free bay' : `Waiting at ${to}`;
+      case 'filling': return 'Filling a bucket at the ball machine';
+      case 'play': return `Hitting balls in bay ${(v.bay ?? 0) + 1}`;
+      case 'venue': return v.venue === 'shop' ? 'Browsing in the pro shop' : `${v.venue === 'bar' ? 'Having a drink' : v.venue === 'resto' ? 'Having a meal' : 'Relaxing'} at the ${VENUES[v.venue].label.toLowerCase()}`;
+      case 'locker': return 'Changing in the locker rooms';
+      case 'desk': return v.type === 'member' ? 'Showing a membership card at the desk' : 'Paying a green fee at the desk';
+      case 'amen': return AMEN_DOING[v.amenType] || 'Practising';
+      case 'golf': return 'On the course';
+      default: return 'Deciding what to do next';
+    }
+  }
+  const bar = (pct, col) => `<div class="bar"><em style="width:${Math.max(0, Math.min(100, pct))}%;background:${col}"></em></div>`;
+  function scoreCard(v) {
+    const g = groupOf(v), pars = g ? g.pars : v.card || [], n = v.strokes.length;
+    if (!n && !g) return '';
+    const holes = g ? g.holes : n, cells = [];
+    for (let i = 0; i < holes; i++) {
+      const s = v.strokes[i], p = pars[i], cls = s == null ? '' : s <= p - 2 ? 'eagle' : s === p - 1 ? 'birdie' : s === p ? 'par' : s === p + 1 ? 'bogey' : 'worse';
+      cells.push(`<span class="sc ${cls}${g && i === g.hole ? ' now' : ''}"><small>${i + 1}</small><em>${p ?? ''}</em><b>${s ?? '·'}</b></span>`);
+    }
+    const tot = v.strokes.reduce((a, b) => a + b, 0), par = pars.slice(0, n).reduce((a, b) => a + b, 0), d = tot - par;
+    return `<div class="insp-sec"><h4>Scorecard${g ? ` · ${TEE[v.tee || 'yellow'].label} tees` : ''}</h4><div class="card-row">${cells.join('')}</div>
+      ${n ? `<div class="kv"><span>Score</span><b>${tot} (${d === 0 ? 'level par' : d > 0 ? '+' + d : '−' + -d}) thru ${n}</b></div>` : ''}</div>`;
+  }
+  function golferHtml(v) {
+    const mk = moodKind(moodOf(v)), st = STANDING[v.standing];
+    const steps = v.plan.map((s, i) => `<span class="step ${i < v.step ? 'done' : i === v.step && v.state !== 'gone' ? 'now' : ''}">${i < v.step ? '✓ ' : ''}${STEP_LABEL[s] || s}</span>`).join('');
+    let wait = '';
+    if (v.state === 'queue' && v.patience) { const left = Math.max(0, 1 - v.wait / v.patience); wait = `<div class="kv"><span>Patience</span><b>${Math.ceil(v.patience - v.wait)} s</b></div>${bar(left * 100, left > 0.5 ? '#3fae5f' : left > 0.25 ? '#d9a520' : '#e8432e')}`; }
+    const arr = v.arrived ? `${clock(v.arrived.clock)}${v.arrived.day !== S.day ? ' yesterday' : ''}` : '–';
+    return `<div class="insp-now">${doingOf(v)}</div>${wait}
+      <div class="insp-sec"><div class="kv"><span>Mood</span><b>${Math.round(moodOf(v))}% · ${MOOD_LABEL[mk]}</b></div>${bar(moodOf(v), MOOD_COLOR[mk])}
+      ${v.thought && simTime - v.thought.t < 90 ? `<p class="thought">“${v.thought.text}”</p>` : ''}</div>
+      ${scoreCard(v)}
+      <div class="insp-sec"><h4>Today's visit</h4><div class="steps">${steps}</div></div>
+      <div class="insp-sec kvs">
+        <div class="kv"><span>Golfer</span><b>${GTYPES[v.type] ? GTYPES[v.type].label : 'Golfer'}${v.hcp !== undefined ? ` · HCP ${fmtHcp(v.hcp)}` : ''}</b></div>
+        <div class="kv"><span>Conduct</span><b>${st.icon ? st.icon + ' ' : ''}${st.label}${v.offenses ? ` · ${v.offenses} offence${v.offenses > 1 ? 's' : ''}` : ''}</b></div>
+        <div class="kv"><span>Spent here</span><b>${fmt(v.spent || 0)}</b></div>
+        <div class="kv"><span>Arrived</span><b>${arr}</b></div>
+        ${v.rental ? '<div class="kv"><span>Clubs</span><b>Rented a set</b></div>' : ''}
+      </div>`;
+  }
+  const wageOf = role => { const s = STAFF.find(x => x.id === (role === 'shop' ? 'assist' : role)); return s ? s.sal * DAY_LEN : 0; };
+  function staffHtml(e) {
+    const o = e.o, role = e.role, rows = [];
+    let now = '', extra = '';
+    if (role === 'marshal') {
+      const j = o.job; now = o.state === 'patrol' ? 'On patrol' + (o.cart ? ' in a cart' : ' on foot') : !j ? 'On patrol' : j.kind === 'person' ? `${o.state === 'work' ? 'Sending' : 'Heading for'} ${j.v.name}${o.state === 'work' ? ' home' : ''}` : j.kind === 'litter' ? 'Picking up litter' : 'Repairing damage';
+      rows.push(['Litter about', litter.length], ['Damage to fix', marks.length], ['Troublemakers', visitors.filter(v => v.flagged && !v.ejected).length]);
+    } else if (role === 'keeper') {
+      now = o.hole >= 0 ? `${o.state === 'mow' ? 'Mowing and repairing' : 'Driving to'} hole ${o.hole + 1}` : 'Every hole is in good shape. Waiting for work.';
+      if (o.hole >= 0) extra = `<div class="kv"><span>Turf on hole ${o.hole + 1}</span><b>${Math.round(turfOf(o.hole))}%</b></div>${bar(turfOf(o.hole), '#3fae5f')}`;
+      rows.push(['Course condition', Math.round(S.cond) + '%'], ['Seed and fertiliser', S.sup ? Math.floor(S.sup.fert) + ' bags' : '–']);
+    } else if (role === 'picker') {
+      const rg = objById(o.rangeId), cart = o.idx < (rg && rg.r ? rg.r.lvl.cart || 0 : 0), cap = rg ? withRange(rg, () => pickerCap(cart)) : 60;
+      now = { seek: 'Heading out to collect balls', collect: 'Picking up balls', return: 'Taking balls back to the machines', unload: 'Filling the ball machines', idle: 'Waiting: the range is clear' }[o.state] || 'Working';
+      extra = `<div class="kv"><span>Load</span><b>${Math.floor(o.load)} / ${cap} balls</b></div>${bar(o.load / cap * 100, '#3a7bd5')}`;
+      rows.push(['Range', rg ? rangeName(rg) : '–'], ['Works with', cart ? 'A picker cart' : 'A basket and tube']);
+      if (rg) withRange(rg, () => rows.push(['Balls on the range', Math.floor(S.field).toLocaleString('en-US')], ['Balls in the machines', Math.floor(S.stock).toLocaleString('en-US')]));
+    } else if (role === 'attend') {
+      const rg = objById(o.rangeId);
+      now = `Looking after bays ${o.idx * 4 + 1}–${o.idx * 4 + 4}`;
+      if (rg) withRange(rg, () => rows.push(['Range', rangeName(rg)], ['Bays staffed', `${staffedBays()} of ${bays()}`], ['Golfers hitting', range.length]));
+    } else if (role === 'owner' || role === 'shop') {
+      now = deskIn.length ? `Checking in ${deskIn.map(v => v.name).slice(0, 2).join(' and ')}` : 'Behind the counter in the pro shop';
+      rows.push(['In the shop', seatTaken.shop ? seatTaken.shop.filter(Boolean).length : 0], ['Waiting at the desk', deskQueue.length], ['Shop sales today', fmt((S.ledger && S.ledger.day.shop) || 0)]);
+    } else if (role === 'chef') {
+      const n = seatTaken.resto ? seatTaken.resto.filter(Boolean).length : 0;
+      now = VENUES.resto.open() ? (n ? `Cooking for ${n} diner${n > 1 ? 's' : ''}` : 'Prepping in the kitchen') : 'The restaurant is closed';
+      rows.push(['Food sales today', fmt((S.ledger && S.ledger.day.food) || 0)]);
+    } else if (role === 'bar') {
+      const n = (seatTaken.bar ? seatTaken.bar.filter(Boolean).length : 0) + (seatTaken.terrace ? seatTaken.terrace.filter(Boolean).length : 0);
+      now = VENUES.bar.open() ? (n ? `Serving ${n} guest${n > 1 ? 's' : ''} at the bar and terrace` : 'Polishing glasses') : 'The bar is closed';
+      rows.push(['Food and drink today', fmt((S.ledger && S.ledger.day.food) || 0)]);
+    } else if (role === 'starter') {
+      now = !facOpen('course') || isDark() ? 'The course is closed' : teeQueue.length ? `Calling the next group: ${teeQueue.length} waiting` : 'Waiting at the first tee';
+      rows.push(['Groups on the course', groups.length], ['Waiting for a tee time', teeQueue.length]);
+    } else if (role === 'coach') {
+      const pupil = o.academy && amenUsers(o.academy).find(u => u.amenSlot === o.idx && u.state === 'amen');
+      now = pupil ? `Teaching ${pupil.name}` : 'Waiting for a pupil';
+      rows.push(['Training supplies', S.sup ? S.sup.training : 0]);
+    }
+    const w = role === 'owner' ? 0 : wageOf(role);
+    return `<div class="insp-now">${now}</div>${extra}
+      <div class="insp-sec kvs">${rows.map(([k, v]) => `<div class="kv"><span>${k}</span><b>${v}</b></div>`).join('')}
+      <div class="kv"><span>Wage</span><b>${role === 'owner' ? 'You run the place' : fmt(w) + ' a day'}</b></div></div>`;
   }
   function inspect(e) {
     insp = e; camFollow = false;
-    $('inspTitle').textContent = e.kind === 'golfer' ? e.o.name : e.kind === 'marshal' ? 'Marshal' : 'Greenkeeper';
-    $('inspFoot').innerHTML = `<button type="button" id="inspFollow" aria-pressed="false">Follow</button>`;
-    $('inspector').hidden = false; paintInspector(); Sound.ui('select');
+    if (narrow() && sheetOpen) closePanel();
+    $('inspTitle').textContent = e.kind === 'golfer' ? e.o.name : e.o.name || ROLE[e.role];
+    $('inspSub').textContent = e.kind === 'golfer' ? `${GTYPES[e.o.type] ? GTYPES[e.o.type].label : 'Golfer'}${e.o.hcp !== undefined ? ' · HCP ' + fmtHcp(e.o.hcp) : ''}` : ROLE[e.role];
+    $('inspFollow').setAttribute('aria-pressed', 'false'); $('inspFollow').textContent = 'Follow';
+    $('inspFoot').innerHTML = e.kind === 'staff' && e.role !== 'owner' ? `<button type="button" id="inspStaff">Staff window</button>` : e.kind === 'golfer' ? `<button type="button" id="inspWho">Everyone here</button>` : '';
+    $('inspector').hidden = false; $('inspBody')._h = null; paintInspector(); paintAvatar(); Sound.ui('select');
   }
   function closeInspector() { insp = null; camFollow = false; $('inspector').hidden = true; }
   function paintInspector() {
     if (!insp) return;
-    if (!entityAlive(insp)) { closeInspector(); return; }
-    const h = inspectHtml(insp); if ($('inspBody')._h !== h) { $('inspBody')._h = h; $('inspBody').innerHTML = h; }
+    if (!entityAlive(insp)) {
+      // golfers who leave: say goodbye rather than vanish
+      if (insp.kind === 'golfer' && insp.o.state === 'gone' && !insp.gone) { insp.gone = true; $('inspBody').innerHTML = `<div class="insp-now">${insp.o.name} has gone home${insp.o.spent ? ` after spending ${fmt(insp.o.spent)}` : ''}.</div>`; setTimeout(() => { if (insp && insp.gone) closeInspector(); }, 2500); }
+      else if (!insp.gone) closeInspector();
+      return;
+    }
+    const h = insp.kind === 'golfer' ? golferHtml(insp.o) : staffHtml(insp);
+    if ($('inspBody')._h !== h) { $('inspBody')._h = h; $('inspBody').innerHTML = h; }
   }
   $('inspClose').addEventListener('click', closeInspector);
+  $('inspFollow').addEventListener('click', () => { if (!insp) return; camFollow = !camFollow; $('inspFollow').setAttribute('aria-pressed', camFollow); $('inspFollow').textContent = camFollow ? 'Following' : 'Follow'; Sound.ui('tap'); });
+  $('inspGo').addEventListener('click', () => { if (!insp || !entityAlive(insp)) return; glideTo(insp.o.x, insp.o.y - 6, Math.max(cam.s, 2.6)); Sound.ui('tap'); });
+  $('inspCam').addEventListener('click', () => { if (insp && entityAlive(insp)) glideTo(insp.o.x, insp.o.y - 6, Math.max(cam.s, 2.6)); });
   $('inspFoot').addEventListener('click', e => {
-    const b = e.target.closest('#inspFollow'); if (!b) return;
-    camFollow = !camFollow; b.setAttribute('aria-pressed', camFollow); b.textContent = camFollow ? 'Following' : 'Follow';
+    if (e.target.closest('#inspStaff')) { const r = insp && insp.role; openPanel(r === 'attend' || r === 'picker' ? 'range' : 'crew'); if (r === 'attend' || r === 'picker') { selRangeId = insp.o.rangeId; buildList(); } Sound.ui('open'); }
+    if (e.target.closest('#inspWho')) { openPanel('people'); Sound.ui('open'); }
   });
   function followCam(dt) {
     if (!camFollow || !insp || !entityAlive(insp)) return;
     const o = insp.o, visH = SH - padTop - padBot, k = Math.min(1, dt * 4);
-    const tx = o.x - (SW - padRight) / 2 / cam.s, ty = o.y - (padTop + visH / 2) / cam.s;
+    const tx = o.x - (SW - padRight) / 2 / cam.s, ty = o.y - 6 - (padTop + visH / 2) / cam.s;
     cam.x += (tx - cam.x) * k; cam.y += (ty - cam.y) * k; clampCam();
   }
+  // a pulsing ring on the ground under whoever is selected
+  function drawSelRing(t) {
+    if (!insp || !entityAlive(insp)) return;
+    const o = insp.o, big = insp.role === 'keeper' || o.cart || o.riding || (insp.role === 'picker' && o.idx < L('cart'));
+    if (!vis(o.x - 20, o.y - 20, o.x + 20, o.y + 20)) return;
+    const p = 0.5 + 0.5 * Math.sin(t * 5), r = (big ? 13 : 6) + p * 1.5;
+    ctx.strokeStyle = `rgba(242,193,78,${0.6 + 0.4 * p})`; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.ellipse(o.x, o.y, r, r * 0.45, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = 'rgba(242,193,78,0.18)'; ctx.fill();
+  }
+  // the live camera: the same scene, drawn a second time into the panel's own canvas
+  const camCv = $('inspCam'), camCtx = camCv.getContext('2d'), avCv = $('inspAv'), avCtx = avCv.getContext('2d');
+  let camFrame = 0;
+  function withView(c, w, h, md, x, y, s, fn) {
+    const sv = { ctx, SW, SH, dpr, x: cam.x, y: cam.y, s: cam.s, V };
+    ctx = c; SW = w; SH = h; dpr = md; cam.x = x; cam.y = y; cam.s = s;
+    try { fn(); } finally { ctx = sv.ctx; SW = sv.SW; SH = sv.SH; dpr = sv.dpr; cam.x = sv.x; cam.y = sv.y; cam.s = sv.s; V = sv.V; }
+  }
+  function renderInspCam(t) {
+    if (!insp || $('inspector').hidden || !entityAlive(insp) || (camFrame++ & 1)) return;
+    const w = camCv.clientWidth, h = camCv.clientHeight; if (!w || !h) return;
+    const md = Math.min(2, window.devicePixelRatio || 1);
+    if (camCv.width !== Math.round(w * md) || camCv.height !== Math.round(h * md)) { camCv.width = Math.round(w * md); camCv.height = Math.round(h * md); }
+    const o = insp.o, z = 3.4;
+    miniPass = true;
+    try { withView(camCtx, w, h, md, o.x - w / 2 / z, o.y - 8 - h / 2 / z, z, () => drawScene(0, t)); } finally { miniPass = false; }
+  }
+  function paintAvatar() {
+    if (!insp) return;
+    const md = Math.min(2, window.devicePixelRatio || 1), w = 40;
+    avCv.width = avCv.height = w * md;
+    withView(avCtx, w, w, md, 0, 0, 5, () => {
+      ctx.setTransform(md * 3, 0, 0, md * 3, 0, 0); ctx.clearRect(0, 0, 20, 20);
+      drawPerson(6.67, 20.5, lookFor(insp), { ang: Math.PI / 2, scale: 1 });
+    });
+  }
+
+  // =====================================================================================
+  // Finding people: everyone in the park (Golfers window) and everyone on duty (Staff window)
+  // =====================================================================================
+  let whoFilter = 'all';
+  const WHO_FILTERS = [['all', 'Everyone'], ['course', 'On the course'], ['range', 'Range'], ['club', 'Clubhouse'], ['practice', 'Practising'], ['unhappy', 'Unhappy']];
+  function whereOf(v) {
+    if (groupOf(v) || v.state === 'golf' || teeQueue.includes(v)) return 'course';
+    if (v.state === 'play' || v.state === 'filling' || bucketQueue.includes(v) || rangeQueue.includes(v) || v.rangeId && v.plan[v.step] === 'range') return 'range';
+    if (v.state === 'venue' || v.state === 'desk' || v.state === 'locker' || deskQueue.includes(v)) return 'club';
+    if (v.state === 'amen') return 'practice';
+    return 'walk';
+  }
+  const dot = c => `<i class="who-dot" style="background:${c}"></i>`;
+  function peopleHtml() {
+    const here = visitors.filter(v => v.state !== 'gone' && v.state !== 'drive');
+    const list = here.filter(v => whoFilter === 'all' || (whoFilter === 'unhappy' ? moodOf(v) < 40 : whereOf(v) === whoFilter));
+    const counts = Object.fromEntries(WHO_FILTERS.map(([k]) => [k, k === 'all' ? here.length : here.filter(v => k === 'unhappy' ? moodOf(v) < 40 : whereOf(v) === k).length]));
+    return `<div class="seg wrap who-seg">${WHO_FILTERS.map(([k, l]) => `<button type="button" data-who="${k}" aria-pressed="${k === whoFilter}">${l} <small>${counts[k]}</small></button>`).join('')}</div>
+      <div class="who-list">${list.length ? list.slice(0, 160).map(v => {
+        const mk = moodKind(moodOf(v));
+        return `<button type="button" class="who" data-pick="g${v.id}">${dot(v.color)}<span class="who-t"><b>${v.name}</b><small>${doingOf(v)}</small></span>
+          <span class="who-m"><small>${GTYPES[v.type] ? GTYPES[v.type].label : ''}${v.hcp !== undefined ? ' · ' + fmtHcp(v.hcp) : ''}</small><i class="who-bar"><em style="width:${moodOf(v)}%;background:${MOOD_COLOR[mk]}"></em></i></span></button>`;
+      }).join('') : `<div class="sc-empty">${here.length ? 'Nobody here matches.' : 'No golfers in the park right now.'}</div>`}</div>`;
+  }
+  function crewHtml() {
+    const ros = staffRoster().sort((a, b) => ROLE_ORDER.indexOf(a.role) - ROLE_ORDER.indexOf(b.role));
+    const hiddenCount = Math.max(0, N('assist') + 1 - Math.min(3, N('assist') + 1)) + Math.max(0, N('chef') - Math.min(2, N('chef'))) + Math.max(0, N('bar') - Math.min(2, N('bar'))) + Math.max(0, N('starter') - 2) + Math.max(0, N('coach') - 3);
+    return `<div class="who-list">${ros.length ? ros.map(e => {
+        const html = staffHtml(e), now = /<div class="insp-now">(.*?)<\/div>/.exec(html);
+        return `<button type="button" class="who" data-pick="${e.role}:${e.o.key || e.o.id || e.o.name}">${dot(lookFor(e).shirt)}<span class="who-t"><b>${e.o.name || ROLE[e.role]}</b><small>${now ? now[1] : ''}</small></span><span class="who-m"><small>${ROLE[e.role]}</small></span></button>`;
+      }).join('') : '<div class="sc-empty">Nobody on the payroll yet. Hire staff on the Hire tab.</div>'}
+      ${hiddenCount ? `<p class="hint" style="padding:6px 4px">${hiddenCount} more staff are working behind the scenes.</p>` : ''}</div>`;
+  }
+  function renderPeople() {
+    if (!sheetOpen || (tab !== 'people' && tab !== 'crew')) return;
+    const el = $('peoplePanel'), h = tab === 'people' ? peopleHtml() : crewHtml();
+    if (el._h !== h) { const sc = el.closest('.sheet-body').scrollTop; el._h = h; el.innerHTML = h; el.closest('.sheet-body').scrollTop = sc; }
+  }
+  $('peoplePanel').addEventListener('click', e => {
+    if (narrow() && e.target.closest('[data-pick]')) closePanel();
+    const f = e.target.closest('[data-who]'); if (f) { whoFilter = f.dataset.who; renderPeople(); Sound.ui('tap'); return; }
+    const b = e.target.closest('[data-pick]'); if (!b) return;
+    const k = b.dataset.pick;
+    let ent = null;
+    if (k[0] === 'g' && /^g\d+$/.test(k)) { const v = visitors.find(x => x.id === +k.slice(1)); if (v) ent = { kind: 'golfer', o: v }; }
+    else ent = staffRoster().find(e2 => `${e2.role}:${e2.o.key || e2.o.id || e2.o.name}` === k) || null;
+    if (!ent) return;
+    inspect(ent); glideTo(ent.o.x, ent.o.y - 6, Math.max(cam.s, 2.6));
+  });
+
   // clicking a building opens the window that runs it
   function buildingAt(wx, wy) {
     const t = tileOf(wx, wy); if (t.tx < 0 || t.ty < 0 || t.tx >= GW || t.ty >= GH) return null;
     const id = occ[tIdx(t.tx, t.ty)], o = id > 0 ? objById(id) : null;
     if (!o) return null;
     if (o.type === 'range') selRangeId = o.id;
+    if (['putt', 'short', 'academy', 'shortc', 'hut', 'lot'].includes(o.type)) { facFocus = 'obj:' + o.id; return 'hours'; }
     return o.type === 'range' ? 'range' : o.type === 'club' ? 'club' : 'place';
   }
 
@@ -7444,13 +7944,15 @@ label.auto input { accent-color: var(--turf); }
     clockT += vdt;
     pcTick(dt);
     stepCamera(dt); followCam(dt); titleDrift(dt);
+    updateActors(clockT);
     drawScene(vdt, clockT);
+    renderInspCam(clockT);
     drawConfetti(vdt);
     drawMoods(vdt);
     Sound.update(dt, audioScene());
     uiT += dt; saveT += dt;
     refreshTop();
-    if (uiT > 0.25) { uiT = 0; if (treesDirty && !(gesture && gesture.type === 'paint')) { treesDirty = false; layout(); } refreshList(); refreshStats(); refreshHud(); paintInspector(); refreshSheetSub(); renderFinance(); if (sheetOpen && tab === 'tee') renderTeeSheet(); measurePads(); clampCam(); }
+    if (uiT > 0.25) { uiT = 0; if (treesDirty && !(gesture && gesture.type === 'paint')) { treesDirty = false; layout(); } refreshList(); refreshStats(); refreshHud(); paintInspector(); refreshFac(); renderPeople(); refreshSheetSub(); renderFinance(); if (sheetOpen && tab === 'tee') renderTeeSheet(); measurePads(); clampCam(); }
     if (saveT > 5) { saveT = 0; save(); }
     achT += dt; if (achT > 1) { achT = 0; checkAchievements(); }
     presT += dt; if (presT > 20) { presT = 0; updatePresence(); }

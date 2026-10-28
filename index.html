@@ -524,6 +524,8 @@ body.at-title .top, body.at-title .bottom, body.at-title .sheet, body.at-title .
 }
 
 #settingsModal, #slotModal { z-index: 9; }
+.ver-mark { position: fixed; right: calc(6px + env(safe-area-inset-right, 0px)); bottom: calc(4px + env(safe-area-inset-bottom, 0px)); z-index: 5; pointer-events: none; user-select: none; font: 700 10px var(--font-body); letter-spacing: 0.04em; color: #fff; opacity: 0.4; text-shadow: 0 1px 2px rgba(0,0,0,0.6); font-variant-numeric: tabular-nums; }
+body.at-title .ver-mark { display: none; }
 .row .st .conn { margin-left: 6px; padding: 3px 8px; font-size: 11px; color: var(--ink); vertical-align: middle; }
 .drot { display: flex; align-items: center; gap: 6px; padding: 4px 12px 2px; flex-wrap: wrap; }
 .drot span { font-size: 12px; font-weight: 800; color: var(--ink); margin-right: auto; }
@@ -769,6 +771,7 @@ label.auto input { accent-color: var(--turf); }
 </div>
 
 <div class="toasts" id="toasts" aria-live="polite"></div>
+<div class="ver-mark" id="verMark" aria-hidden="true"></div>
 <div class="paused-tag" id="pausedTag" hidden>Paused</div>
 <div class="modal" id="bankModal" hidden>
   <div class="card">
@@ -803,6 +806,7 @@ label.auto input { accent-color: var(--turf); }
 <script>
 (() => {
   const $ = id => document.getElementById(id);
+  const GAME_VERSION = '0.33.0';   // bump with every release
   const SAVE_KEY = 'fairway-tycoon-v2';
   // The desktop build (Electron) exposes window.fairwayPlatform; in a browser this is null and saves stay in localStorage.
   const Platform = window.fairwayPlatform || null;
@@ -6326,6 +6330,8 @@ label.auto input { accent-color: var(--turf); }
   }
 
   // ---------- Startup ----------
+  $('verMark').textContent = `Fairway Tycoon v${GAME_VERSION}`;
+  $('titleVer').textContent = `Early access · v${GAME_VERSION}`;
   applySettings();
   if (Platform && SETTINGS.fullscreen) { try { Platform.setFullscreen(true); } catch {} }
   renderAchievements();

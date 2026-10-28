@@ -325,6 +325,22 @@ button { font-family: var(--font-body); }
 .pill { flex: none; border-radius: 10px; padding: 5px 10px; font-size: 11.5px; font-weight: 700; font-variant-numeric: tabular-nums; display: inline-flex; gap: 6px; align-items: center; }
 .pill i { width: 7px; height: 7px; border-radius: 50%; background: #7fe09a; }
 .pill i.warn { background: var(--gold); } .pill i.bad { background: var(--flag); }
+.ev-pill { border: 0; cursor: pointer; color: inherit; font-family: inherit; background: rgba(242,193,78,0.92) !important; color: #2a2008 !important; }
+.ev-pill .ev-i { font-size: 13px; line-height: 1; }
+[hidden] { display: none !important; }
+#evModal { z-index: 9; }
+.ev-card { width: min(400px, 100%) !important; zoom: var(--ui, 1); }
+.ev-ic { font-size: 40px; line-height: 1; width: 72px; height: 72px; border-radius: 50%; display: grid; place-items: center; background: #f6efd9; box-shadow: inset 0 0 0 3px var(--gold); }
+.ev-opts { display: flex; flex-direction: column; gap: 8px; width: 100%; margin-top: 4px; }
+.ev-opt { display: flex; flex-direction: column; gap: 2px; align-items: flex-start; text-align: left; width: 100%; padding: 11px 14px; border-radius: 14px; border: 1px solid var(--line); background: #fff; color: var(--ink); font: inherit; cursor: pointer; }
+.ev-opt b { font-size: 15px; } .ev-opt small { font-size: 12px; color: var(--muted); }
+.ev-opt.primary { background: var(--turf); border-color: var(--turf); color: #fff; } .ev-opt.primary small { color: rgba(255,255,255,0.85); }
+.ev-opt:hover, .ev-opt:focus-visible { filter: brightness(1.05); box-shadow: 0 0 0 2px var(--gold); }
+.news { display: grid; grid-template-columns: 30px 1fr auto; gap: 10px; align-items: start; padding: 7px 0; border-top: 1px solid var(--line); }
+.news i { font-style: normal; font-size: 18px; width: 30px; height: 30px; border-radius: 50%; background: #f3f0e4; display: grid; place-items: center; }
+.news div { display: flex; flex-direction: column; min-width: 0; } .news b { font-size: 13.5px; } .news span { font-size: 12px; color: var(--muted); line-height: 1.4; }
+.news em { font-style: normal; font-size: 11.5px; font-weight: 700; color: #8a6a10; white-space: nowrap; }
+.news.now { background: #fbf6e6; border-radius: 10px; padding: 7px 8px; border-top: 0; margin-bottom: 2px; }
 .tip {
   align-self: flex-start; max-width: 520px; display: flex; gap: 10px; align-items: center;
   background: var(--paper); color: var(--ink); border-radius: 14px; padding: 8px 12px 8px 8px; font-weight: 700; font-size: 13px; line-height: 1.35;
@@ -678,6 +694,7 @@ label.auto input { accent-color: var(--turf); }
     </div>
   </header>
   <div class="pills">
+    <button class="pill glass ev-pill" id="pillEvent" type="button" hidden title="What is happening: open the news"></button>
     <span class="pill glass" id="pillBays"></span>
     <span class="pill glass" id="pillBalls"></span>
     <span class="pill glass" id="pillPark"></span>
@@ -718,6 +735,7 @@ label.auto input { accent-color: var(--turf); }
       </div>
       <div class="pk" id="pkStars" data-sec="goals"></div>
       <div class="pk" id="pkGoals" data-sec="goals"></div>
+      <div class="pk" id="pkNews" data-sec="events"></div>
       <div class="pk" id="pkEvents" data-sec="events"></div>
       <div class="pk" id="pkRival" data-sec="rival"></div>
       <div class="achs" data-sec="awards">
@@ -811,6 +829,7 @@ label.auto input { accent-color: var(--turf); }
     <label class="set-row"><span>Camera speed</span><input type="range" id="setCam" min="0.4" max="2.5" step="0.1"><b id="setCamV"></b></label>
     <label class="set-row check"><span>Scroll at screen edges</span><input type="checkbox" id="setEdge"></label>
     <label class="set-row check"><span>Fullscreen</span><input type="checkbox" id="setFs"></label>
+    <label class="set-row pick"><span>Random events</span><select id="setEvents"><option value="off">Off</option><option value="rare">Rare</option><option value="normal">Normal</option><option value="often">Frequent</option></select><span></span></label>
     <div class="keys">
       <h3>Controls</h3>
       <div class="keygrid">
@@ -858,6 +877,15 @@ label.auto input { accent-color: var(--turf); }
   </div>
 </div>
 
+<div class="modal" id="evModal" hidden>
+  <div class="card ev-card" role="dialog" aria-labelledby="evTitle">
+    <span class="ev-ic" id="evIcon" aria-hidden="true"></span>
+    <span class="eyebrow" id="evKicker">Club news</span>
+    <h2 id="evTitle"></h2>
+    <p id="evText"></p>
+    <div class="ev-opts" id="evOpts"></div>
+  </div>
+</div>
 <div class="modal" id="cupModal" hidden>
   <div class="card">
     <span class="eyebrow" id="cupEyebrow">Event</span>
@@ -871,7 +899,7 @@ label.auto input { accent-color: var(--turf); }
 <script>
 (() => {
   const $ = id => document.getElementById(id);
-  const GAME_VERSION = '0.36.0';   // bump with every release
+  const GAME_VERSION = '0.37.0';   // bump with every release
   const SAVE_KEY = 'fairway-tycoon-v2';
   // The desktop build (Electron) exposes window.fairwayPlatform; in a browser this is null and saves stay in localStorage.
   const Platform = window.fairwayPlatform || null;
@@ -1069,7 +1097,8 @@ label.auto input { accent-color: var(--turf); }
   let S = baseState();
   const L = id => RANGE_UP.has(id) ? (curR ? (curR.r.lvl[id] || 0) : Math.max(0, ...rangeObjs().map(o => (o.r && o.r.lvl[id]) || 0))) : (S.lvl[id] || 0);
   const rStaff = id => curR ? (curR.r.staff[id] || 0) : rangeObjs().reduce((a, o) => a + ((o.r && o.r.staff[id]) || 0), 0);
-  const N = id => strike ? 0 : RANGE_STAFF.has(id) ? rStaff(id) : (S.staff[id] || 0);
+  let strikeRoles = new Set();   // staff on strike after a random event
+  const N = id => strike || strikeRoles.has(id) ? 0 : RANGE_STAFF.has(id) ? rStaff(id) : (S.staff[id] || 0);
   let strike = false;
 
   // ---------- Economy ----------
@@ -1352,13 +1381,13 @@ label.auto input { accent-color: var(--turf); }
   const staffedBays = () => Math.min(bays(), 3 + 4 * N('attend'));
   const rangeRainMult = () => Math.min(1, 0.45 + 0.11 * L('covered'));
   const nightRange = () => L('lights') ? Math.min(1, 0.25 + 0.15 * L('lights')) : 0.04;
-  const arrivalBase = () => 0.3 * (1 + 0.3 * L('market'));
+  const arrivalBase = () => 0.3 * (1 + 0.3 * L('market')) * modMult('arrive');
   const W_ = () => WEATHER[S.wx];
   const openRanges = () => rangeObjs().filter(o => o.r && connected('OBJ:' + o.id) && facOpen('range:' + o.id)).length;
-  const rangeDemand = () => (rangeOK() ? hcpDemand(false) * (1 - Math.pow(0.85, openRanges())) / 0.15 : 0) * starAppeal() * arrivalBase() * 0.6 * (S.wx === 'rain' ? rangeRainMult() : W_().range) * (isDark() ? nightRange() : 1) * parkAppeal() * seasonDemand() * valueDemand(ratioOf('bucket'));
-  const courseDemand = () => isDark() || isFrost() || !facOpen('course') ? 0 : seasonDemand() * courseValue() * arrivalBase() * 0.32 * W_().course * (0.4 + 0.6 * S.cond / 100) * (1 + 0.1 * N('starter')) * courseAppeal() * parkAppeal() * starAppeal() * rivalShare() * (eventRunning() ? 0 : 1) * (courseOK() ? Math.pow(Math.min(1, courseHoles() / 9), 0.6) * hcpDemand(true) : 0);
+  const rangeDemand = () => modMult('range') * (rangeOK() ? hcpDemand(false) * (1 - Math.pow(0.85, openRanges())) / 0.15 : 0) * starAppeal() * arrivalBase() * 0.6 * (S.wx === 'rain' ? rangeRainMult() : W_().range) * (isDark() ? nightRange() : 1) * parkAppeal() * seasonDemand() * valueDemand(ratioOf('bucket'));
+  const courseDemand = () => isDark() || isFrost() || !facOpen('course') ? 0 : modMult('course') * seasonDemand() * courseValue() * arrivalBase() * 0.32 * W_().course * (0.4 + 0.6 * S.cond / 100) * (1 + 0.1 * N('starter')) * courseAppeal() * parkAppeal() * starAppeal() * rivalShare() * (eventRunning() ? 0 : 1) * (courseOK() ? Math.pow(Math.min(1, courseHoles() / 9), 0.6) * hcpDemand(true) : 0);
   const shopSpend = () => 0.5 * L('shop') * incomeMult();
-  const foodCourse = () => objs().some(o => o.type === 'hut' && facOpen('obj:' + o.id)) ? 6 * (1 + L('food')) * incomeMult() : 0;
+  const foodCourse = () => objs().some(o => o.type === 'hut' && facOpen('obj:' + o.id)) ? 6 * (1 + L('food')) * incomeMult() * modMult('food') : 0;
   const maxWait = () => 16 * Math.pow(0.7, N('starter'));
   const salaries = () => STAFF.reduce((a, s) => a + s.sal * (RANGE_STAFF.has(s.id) ? rStaff(s.id) : (S.staff[s.id] || 0)), 0);
   const cost = u => u.id === 'order' ? Math.ceil(u.base * renoMult()) : Math.ceil(u.base * Math.pow(u.g, u.id === 'bay' || u.id === 'bayL' ? bays() - 3 : level(u)));
@@ -1478,6 +1507,7 @@ label.auto input { accent-color: var(--turf); }
     if (S.event && S.event.state === 'booked' && S.day >= S.event.day) startEvent();
     S.frostDay = season() === 'winter' && Math.random() < 0.6;
     if (S.frostDay) toast('Frost', 'Frosty morning', 'The greens are frozen. The course opens at 10:30 once they thaw.', '❄');
+    scheduleRandomEvent();
   }
   function endOfMonth(m) {
     const L_ = S.ledger, profit = sumOf(L_.month), inc = incomeOf(L_.month);
@@ -1536,6 +1566,7 @@ label.auto input { accent-color: var(--turf); }
     if (!S.prices) ensurePrices();
     runCosts(dt);
     strike = false;
+    eventsTick();
 
     // visitors: arrivals, walking, queues, the range and the clubhouse
     tickVisitors(dt);
@@ -2660,7 +2691,7 @@ label.auto input { accent-color: var(--turf); }
   }
   function moveGolfer(v, tx, ty, dt) {
     const d = Math.hypot(tx - v.x, ty - v.y);
-    v.riding = L('carts') > 0 && d > 30;
+    v.riding = L('carts') > 0 && !modOn('nocarts') && d > 30;
     return moveTo(v, tx, ty, v.riding ? RIDE() : STROLL, dt);
   }
   function startHole(g) {
@@ -2950,6 +2981,7 @@ label.auto input { accent-color: var(--turf); }
       }
     }
     drawOutdoorActors(t);
+    drawEventWorld(t);
     drawUmbrellas();
     drawFlags(t);
 
@@ -2996,6 +3028,7 @@ label.auto input { accent-color: var(--turf); }
       }
       ctx.restore();
     }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); drawEventSky();
     if (S.wx === 'rain' && !designing) {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.strokeStyle = 'rgba(200,225,245,0.45)'; ctx.lineWidth = 1;
@@ -3548,7 +3581,7 @@ label.auto input { accent-color: var(--turf); }
     v.temper *= STANDING[v.standing].temper;
     v.arrived = { day: S.day, clock: S.clock };
     v.type = forceType || 'regular'; assignHcp(v, forceType); if (v.type === 'member') v.temper *= 1.3;
-    v.mood = 65 + (v.standing === 'exemplary' ? 12 : v.standing === 'bad' ? -12 : 0) + rnd(-8, 8);
+    v.mood = 65 + (v.standing === 'exemplary' ? 12 : v.standing === 'bad' ? -12 : 0) + rnd(-8, 8) + modAdd('mood');
     conductLog.push(v.standing); if (conductLog.length > 200) conductLog.shift();
     // amenities: a warm-up putt before a round, a lesson for beginners, short game practice
     if (plan.includes('course')) plan.splice(plan.indexOf('course'), 0, 'checkin');   // green fee or membership card at the clubhouse desk first
@@ -3690,7 +3723,7 @@ label.auto input { accent-color: var(--turf); }
   }
   function finishRound(g) {
     for (const v of g.players) v.card = g.pars.slice(0, v.strokes.length);
-    const end = hPt(g.holes - 1, 1), cart = L('carts') > 0;
+    const end = hPt(g.holes - 1, 1), cart = L('carts') > 0 && !modOn('nocarts');
     g.players.forEach((v, k) => {
       v.riding = false;
       walk(v, [{ ...NODES.NORTH }], () => { v.at = 'NORTH'; v.cart = false; nextStop(v); }, cart ? 160 : 75);
@@ -3760,7 +3793,7 @@ label.auto input { accent-color: var(--turf); }
   }
   function leaveVenue(v) {
     const stocked = useSupply(v.venue === 'shop' ? 'shop' : 'food');
-    const vs = stocked ? VENUES[v.venue].spend() * spendOf(v) * (v.venue === 'shop' ? 1 : S.prices.menu) : 0;
+    const vs = stocked ? VENUES[v.venue].spend() * spendOf(v) * (v.venue === 'shop' ? 1 : S.prices.menu * modMult('food')) : 0;
     if (!stocked) emote(v, -8, 'annoyed', ['Nothing in stock?', 'Sold out, again.'], 0.6);
     else { earnV(v, vs, v.venue === 'shop' ? 'shop' : 'food'); moneyPop(v, vs); }
     if (v.venue === 'shop') S.sales = (S.sales || 0) + 1; else priceReact(v, S.prices.menu);
@@ -4008,6 +4041,7 @@ label.auto input { accent-color: var(--turf); }
     // damage
     for (const k of marks) {
       if (!vis(k.x - 12, k.y - 12, k.x + 12, k.y + 12)) continue;
+      if (k.type === 'branch') { drawBranch(k); continue; }
       if (k.type === 'bay') {
         ctx.fillStyle = '#3a2d22'; ctx.fillRect(k.x - 9, k.y - 7, 18, 14);
         ctx.strokeStyle = '#c9b08a'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(k.x - 7, k.y - 5); ctx.lineTo(k.x - 1, k.y + 1); ctx.lineTo(k.x + 2, k.y - 3); ctx.lineTo(k.x + 7, k.y + 5); ctx.stroke();
@@ -4095,6 +4129,7 @@ label.auto input { accent-color: var(--turf); }
   // when someone leaves, how they felt feeds the club's reputation; reputation brings more (or fewer) golfers
   function recordMood(v) {
     if (v.recorded) return; v.recorded = true;
+    if (v.celeb) celebLeaves(v);
     if (v.ejected) return;   // nobody misses a troublemaker
     S.rep = (S.rep === undefined ? 70 : S.rep) * 0.97 + moodOf(v) * 0.03;
   }
@@ -4179,6 +4214,7 @@ label.auto input { accent-color: var(--turf); }
       if (hot) d += 0.025 * Math.pow(0.75, irr);                         // drying out in the summer sun
       if (sea === 'winter') d *= 0.5;
       d += 0.012 * (onHole[i] || 0);                                     // foot traffic
+      d *= modMult('wear');
       const grow = (sea === 'spring' ? 0.008 : sea === 'winter' ? 0.001 : 0.004) * (facShut('course') ? 3 : 1);   // a closed course rests
       S.turf[i] = Math.max(0, Math.min(100, S.turf[i] - d * dt + grow * dt));
     }
@@ -4433,6 +4469,7 @@ label.auto input { accent-color: var(--turf); }
   const setHTML = (id, h) => { const el = $(id); if (el && el._h !== h) { el._h = h; el.innerHTML = h; } };
   function renderPark() {
     if (!sheetOpen || tab !== 'park' || !$('pkStars')) return;
+    setHTML('pkNews', newsHtml());
     const sp = starPoints(), n = starsOf(sp.total), next = STAR_STEPS[n] ;
     setHTML('pkStars', `<div class="pk-h"><h3>Star rating</h3><span class="stars">${starText(n)}</span></div>
       ${Object.entries(sp.parts).map(([k, v]) => `<div class="pk-row"><span>${k}</span><i><em style="width:${Math.round(v / { 'Course design': 30, 'Turf': 20, '18 holes': 10, 'Facilities': 30, 'Reputation': 18 }[k] * 100)}%"></em></i><b>${Math.round(v)}</b></div>`).join('')}
@@ -6178,7 +6215,7 @@ label.auto input { accent-color: var(--turf); }
 
   // ---------- Settings ----------
   const SET_KEY = 'fairway-settings';
-  const SETTINGS = { uiScale: 1, master: 0.9, music: 0.6, ambience: 0.8, sfx: 0.9, track: 'auto', camSpeed: 1, edgePan: true, fullscreen: false };
+  const SETTINGS = { uiScale: 1, master: 0.9, music: 0.6, ambience: 0.8, sfx: 0.9, track: 'auto', events: 'normal', camSpeed: 1, edgePan: true, fullscreen: false };
   try { Object.assign(SETTINGS, JSON.parse((Platform ? Platform.readSettings() : localStorage.getItem(SET_KEY)) || '{}')); } catch {}
   function saveSettings() {
     const j = JSON.stringify(SETTINGS);
@@ -6196,6 +6233,7 @@ label.auto input { accent-color: var(--turf); }
     for (const [id, key, f] of SLIDERS) { $(id).value = SETTINGS[key]; $(id + 'V').textContent = f(SETTINGS[key]); }
     $('setEdge').checked = SETTINGS.edgePan;
     $('setTrack').value = SETTINGS.track || 'auto';
+    $('setEvents').value = SETTINGS.events || 'normal';
     $('setFs').checked = Platform ? SETTINGS.fullscreen : !!document.fullscreenElement;
     $('quitBtn').hidden = !Platform;
     const info = steamCall('info');
@@ -6205,6 +6243,7 @@ label.auto input { accent-color: var(--turf); }
   }
   for (const [id, key, f] of SLIDERS) $(id).addEventListener('input', () => { SETTINGS[key] = +$(id).value; $(id + 'V').textContent = f(SETTINGS[key]); applySettings(); saveSettings(); });
   $('setTrack').innerHTML = '<option value="auto">Follow the day</option>' + Sound.tracks.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+  $('setEvents').addEventListener('change', () => { SETTINGS.events = $('setEvents').value; saveSettings(); });
   $('setTrack').addEventListener('change', () => { SETTINGS.track = $('setTrack').value; saveSettings(); });
   $('setSkip').addEventListener('click', e => { e.preventDefault(); Sound.skipTrack(); });
   $('setEdge').addEventListener('change', () => { SETTINGS.edgePan = $('setEdge').checked; saveSettings(); });
@@ -6358,7 +6397,7 @@ label.auto input { accent-color: var(--turf); }
       return `<b>Marshal</b>${m.cart ? ' · in a cart' : ''}<br>${what}`;
     }
     if (pick && marshals.includes(pick)) return '';
-    if (!pick) for (const k of marks) if (Math.hypot(k.x - wx, k.y - wy) < r) return `<b>${{ bay: 'Broken bay', furniture: 'Broken furniture', green: 'Damaged green', fairway: 'Divots in the fairway', tee: 'Damaged tee box' }[k.type]}</b>${k.hole !== undefined ? ` · hole ${k.hole + 1}` : ''}<br>${k.by ? 'A marshal is on the way' : 'Waiting for repair'}${k.type === 'bay' ? '<br>The bay is out of order' : ''}`;
+    if (!pick) for (const k of marks) if (Math.hypot(k.x - wx, k.y - wy) < r) return `<b>${{ branch: 'Fallen branch', bay: 'Broken bay', furniture: 'Broken furniture', green: 'Damaged green', fairway: 'Divots in the fairway', tee: 'Damaged tee box' }[k.type]}</b>${k.hole !== undefined ? ` · hole ${k.hole + 1}` : ''}<br>${k.by ? 'A marshal is on the way' : 'Waiting for repair'}${k.type === 'bay' ? '<br>The bay is out of order' : ''}`;
     if (!pick) for (const l of litter) if (Math.hypot(l.x - wx, l.y - wy) < r * 0.7) return `<b>Litter</b><br>Makes the park less inviting${l.by ? '<br>A marshal is on the way' : ''}`;
     // people first
     let best = null, bd = r;
@@ -6570,6 +6609,7 @@ label.auto input { accent-color: var(--turf); }
   // =====================================================================================
   let facFocus = null;
   function facOpen(key) {
+    if (S.mods && S.mods.length && tempShut(key)) return false;
     const f = S.fac && S.fac[key]; if (!f) return true;
     if (f.shut) return false;
     if (f.from == null) return true;
@@ -6617,6 +6657,7 @@ label.auto input { accent-color: var(--turf); }
     const f = S.fac && S.fac[key], open = facOpen(key), use = facUse(key), k = key.split(':')[0];
     const unit = k === 'obj' && objById(+key.split(':')[1])?.type === 'lot' ? 'cars' : 'golfers';
     const inUse = use ? ` · ${use} ${use === 1 ? unit.slice(0, -1) : unit}` : '';
+    const tm = tempShut(key); if (tm) return { open: false, text: `Closed · ${(tm.note || tm.label).toLowerCase()} until ${clock(tm.until)}` + inUse };
     if (f && f.shut) return { open: false, text: (key === 'course' ? 'Closed · resting the turf' : 'Closed') + inUse };
     if (!open) return { open: false, text: `Closed · opens at ${hh(f.from)}` + inUse };
     if (key === 'course' && isDark()) return { open: false, text: 'Closed for the night' + inUse };
@@ -6917,7 +6958,7 @@ label.auto input { accent-color: var(--turf); }
     insp = e; camFollow = false;
     if (narrow() && sheetOpen) closePanel();
     $('inspTitle').textContent = e.kind === 'golfer' ? e.o.name : e.o.name || ROLE[e.role];
-    $('inspSub').textContent = e.kind === 'golfer' ? `${GTYPES[e.o.type] ? GTYPES[e.o.type].label : 'Golfer'}${e.o.hcp !== undefined ? ' · HCP ' + fmtHcp(e.o.hcp) : ''}` : ROLE[e.role];
+    $('inspSub').textContent = e.kind === 'golfer' ? `${e.o.celeb ? '★ ' + e.o.celeb + ' · ' : ''}${GTYPES[e.o.type] ? GTYPES[e.o.type].label : 'Golfer'}${e.o.hcp !== undefined ? ' · HCP ' + fmtHcp(e.o.hcp) : ''}` : ROLE[e.role];
     $('inspFollow').setAttribute('aria-pressed', 'false'); $('inspFollow').textContent = 'Follow';
     $('inspFoot').innerHTML = e.kind === 'staff' && e.role !== 'owner' ? `<button type="button" id="inspStaff">Staff window</button>` : e.kind === 'golfer' ? `<button type="button" id="inspWho">Everyone here</button>` : '';
     $('inspector').hidden = false; $('inspBody')._h = null; paintInspector(); paintAvatar(); Sound.ui('select');
@@ -7004,7 +7045,7 @@ label.auto input { accent-color: var(--turf); }
     return `<div class="seg wrap who-seg">${WHO_FILTERS.map(([k, l]) => `<button type="button" data-who="${k}" aria-pressed="${k === whoFilter}">${l} <small>${counts[k]}</small></button>`).join('')}</div>
       <div class="who-list">${list.length ? list.slice(0, 160).map(v => {
         const mk = moodKind(moodOf(v));
-        return `<button type="button" class="who" data-pick="g${v.id}">${dot(v.color)}<span class="who-t"><b>${v.name}</b><small>${doingOf(v)}</small></span>
+        return `<button type="button" class="who" data-pick="g${v.id}">${dot(v.color)}<span class="who-t"><b>${v.celeb ? '★ ' : ''}${v.name}</b><small>${doingOf(v)}</small></span>
           <span class="who-m"><small>${GTYPES[v.type] ? GTYPES[v.type].label : ''}${v.hcp !== undefined ? ' · ' + fmtHcp(v.hcp) : ''}</small><i class="who-bar"><em style="width:${moodOf(v)}%;background:${MOOD_COLOR[mk]}"></em></i></span></button>`;
       }).join('') : `<div class="sc-empty">${here.length ? 'Nobody here matches.' : 'No golfers in the park right now.'}</div>`}</div>`;
   }
@@ -7033,6 +7074,303 @@ label.auto input { accent-color: var(--turf); }
     if (!ent) return;
     inspect(ent); glideTo(ent.o.x, ent.o.y - 6, Math.max(cam.s, 2.6));
   });
+
+  // =====================================================================================
+  // Random events. Most days something may happen: weather, wildlife, visitors, breakdowns,
+  // offers and requests. News just happens; offers pause the game and ask you to choose.
+  // Their effects are temporary modifiers (S.mods) and temporary closures.
+  // =====================================================================================
+  const nowT = () => S.day * DAY_LEN + S.clock;
+  const atT = (day, h) => day * DAY_LEN + h / 24 * DAY_LEN;
+  const activeMods = () => (S.mods || []).filter(m => (m.start || 0) <= nowT() && nowT() < m.until);
+  function modMult(k) { let x = 1; for (const m of activeMods()) if (m.eff[k] != null) x *= m.eff[k]; return x; }
+  function modAdd(k) { let x = 0; for (const m of activeMods()) if (m.eff[k] != null) x += m.eff[k]; return x; }
+  const modOn = k => activeMods().some(m => m.eff[k]);
+  function tempShut(key) { for (const m of activeMods()) if (m.eff.close && m.eff.close.includes(key)) return m; return null; }
+  function addMod(key, label, icon, startT, untilT, eff, note = '') {
+    (S.mods ||= []).push({ id: (S.modId = (S.modId || 0) + 1), key, label, icon, start: startT, until: untilT, eff, note });
+    csCache = null;
+  }
+  function timeLeft(m) {
+    const t = nowT(), h = Math.max(0, ((m.start > t ? m.start : m.until) - t) / DAY_LEN * 24);
+    const s = h >= 24 ? `${Math.floor(h / 24)}d ${Math.round(h % 24)}h` : h >= 1 ? `${Math.round(h)}h` : `${Math.max(1, Math.round(h * 60))}m`;
+    return m.start > t ? `starts in ${s}` : `${s} left`;
+  }
+  const builtHoles = () => builtIdx().filter(i => holeOpen(i));
+  const pickOf = a => a[Math.floor(Math.random() * a.length)];
+  const roundTo = (x, n = 100) => Math.max(n, Math.round(x / n) * n);
+  // famous (and entirely made-up) visitors
+  const CELEBS = [['Max Albatross', 'TV quiz show host'], ['Lena Fairweather', 'pop star'], ['Coach Duffy', 'football manager'], ['Dr Ivy Spinks', 'TV doctor'],
+    ['Rocco Vale', 'action film star'], ['Bea Holloway', 'Olympic rower'], ['Sir Nigel Pembury', 'retired racing driver'], ['DJ Kestrel', 'radio presenter']];
+  const STAFF_PLURAL = { keeper: 'greenkeepers', marshal: 'marshals', bar: 'bartenders', chef: 'chefs', assist: 'shop assistants', starter: 'starters', coach: 'teaching pros' };
+  const RANDOM_EVENTS = {
+    // ---------------- news ----------------
+    heatwave: { icon: '☀', w: 1, cool: 25, at: [8, 10], when: () => season() === 'summer',
+      fire() { S.wx = 'sunny'; S.wxNext = 'sunny'; S.wxLeft = DAY_LEN; addMod('heatwave', 'Heatwave', '☀', nowT(), nowT() + 2 * DAY_LEN, { course: 1.15, range: 1.1, food: 1.35, wear: 1.8, heat: 1 });
+        return ['Heatwave', 'Two scorching days ahead. Expect more golfers and thirsty ones, but the turf will dry out fast without irrigation.']; } },
+    fog: { icon: '🌫', w: 1, cool: 8, at: [5.5, 6.5], when: () => courseHoles() > 0 && season() !== 'summer' && !S.frostDay,
+      fire() { const until = atT(S.day, 10.5); addMod('fog', 'Fog', '🌫', nowT(), until, { close: ['course'], fog: 1 }, 'Fog');
+        return ['Fog', 'Thick fog rolled in overnight. Nobody can see the flags, so the course opens at 10:30 once it lifts.']; } },
+    storm: { icon: '⛈', w: 1, cool: 14, at: [5.5, 6.5], when: () => (season() === 'autumn' || season() === 'winter' || Math.random() < 0.3) && courseHoles() > 0,
+      fire() {
+        S.wx = 'rain'; S.wxLeft = 120;
+        const hs = builtHoles(), n = 4 + Math.floor(Math.random() * 5);
+        for (let k = 0; k < n && hs.length; k++) { const i = pickOf(hs), p = hPt(i, rnd(0.15, 0.9)), tn = hTan(i, 0.5); addMark('branch', p.x - tn.y * rnd(-22, 22), p.y + tn.x * rnd(-22, 22), { hole: i, rot: Math.random() * 6 }); }
+        for (let k = 0; k < 10; k++) { const i = pickOf(hs); if (i == null) break; const p = hPt(i, Math.random()); dropLitter(p.x + rnd(-30, 30), p.y + rnd(-30, 30)); }
+        return ['Storm', `A storm blew through overnight. ${n} fallen branches lie across the course and there is debris everywhere. Marshals and greenkeepers will clear it, the more of them the faster.`]; } },
+    pests: { icon: '🐛', w: 0.8, cool: 30, at: [7, 12], when: () => (season() === 'spring' || season() === 'summer') && builtHoles().length >= 3,
+      fire() {
+        const hs = builtHoles().sort(() => Math.random() - 0.5).slice(0, 2 + Math.floor(Math.random() * 2));
+        for (const i of hs) S.turf[i] = Math.max(5, S.turf[i] - rnd(18, 28));
+        return ['Pests', `Leatherjackets are eating the roots on hole${hs.length > 1 ? 's' : ''} ${hs.map(i => i + 1).join(', ')}. The turf there has taken a beating. Greenkeepers and seed will bring it back.`]; } },
+    feature: { icon: '📰', w: 0.7, cool: 30, at: [8, 12], when: () => stars() >= 2,
+      fire() { addMod('feature', 'Magazine feature', '📰', nowT(), nowT() + 3 * DAY_LEN, { arrive: 1.25 }); S.rep = Math.min(100, (S.rep ?? 70) + 3);
+        return ['In the press', `Golf Monthly ran a two-page spread on ${clubName()}. Expect a busier few days.`]; } },
+    viral: { icon: '📱', w: 0.8, cool: 20, at: [9, 15], when: () => visitors.length > 5,
+      fire() { const v = pickOf(visitors.filter(x => x.state !== 'drive' && x.state !== 'gone')) || { name: 'A golfer' }; addMod('viral', 'Gone viral', '📱', nowT(), nowT() + DAY_LEN, { arrive: 1.45 });
+        return ['Gone viral', `${v.name} posted a video of a trick shot at your club and it is everywhere. Golfers are flocking in today.`]; } },
+    juniors: { icon: '🎒', w: 1, cool: 40, at: [7, 9], when: () => [6, 7].includes(monthIdx()) || (monthIdx() === 3 && Math.random() < 0.5),
+      fire() { addMod('juniors', 'School holidays', '🎒', nowT(), nowT() + 5 * DAY_LEN, { band_novice: 3, band_high: 1.5 });
+        return ['School holidays', 'The schools are out. For five days you will see far more juniors and beginners. Rental clubs, lessons and the short course will be in demand.']; } },
+    celebrity: { icon: '⭐', w: 0.6, cool: 20, at: [9, 12], when: () => stars() >= 3 && courseOK() && facOpen('course') && !isDark(),
+      fire() {
+        const before = visitors.length; arriveVisitor(['course', 'club'], 'expert');
+        if (visitors.length === before) return null;   // no room in the car park: they drive on
+        const v = visitors[visitors.length - 1], [name, what] = pickOf(CELEBS);
+        v.name = name; v.celeb = what; v.temper *= 0.8; v.color = '#f2c14e';
+        return ['Celebrity visit', `${name}, the ${what}, has just arrived for a round. Look after them: a good day out means great publicity, a bad one gets talked about too.`, v]; } },
+    powercut: { icon: '⚡', w: 0.6, cool: 25, at: [10, 15], when: () => hasObj('club') && (L('resto') || L('barRoom')),
+      fire() { const shut = ['venue:shop', 'venue:resto', 'venue:bar', 'venue:terrace']; addMod('powercut', 'Power cut', '⚡', nowT(), nowT() + 3 / 24 * DAY_LEN, { close: shut }, 'Power cut');
+        return ['Power cut', 'The clubhouse has lost power. The shop, restaurant, bar and terrace are closed for about three hours. The check-in desk works by torchlight.']; } },
+    geese: { icon: '🦆', w: 0.8, cool: 15, at: [7, 12], when: () => rangeOK() && season() !== 'winter',
+      fire() { addMod('geese', 'Geese on the range', '🦆', nowT(), nowT() + 6 / 24 * DAY_LEN, { range: 0.8, geese: 1 });
+        return ['Geese on the range', 'A flock of Canada geese has landed on the driving range and refuses to move. Some golfers are put off. They should leave by this afternoon.']; } },
+    vandals: { icon: '🔦', w: 0.6, cool: 25, at: [6, 7], when: () => builtHoles().length >= 2,
+      fire() {
+        const hs = builtHoles().sort(() => Math.random() - 0.5).slice(0, 2 + Math.floor(Math.random() * 2));
+        for (const i of hs) { const g = hPt(i, greenT(i)); addMark('green', g.x + rnd(-6, 6), g.y + rnd(-4, 4), { hole: i }); wearHole(i, 6); dropLitter(g.x + rnd(-20, 20), g.y + rnd(-15, 15)); }
+        if (!N('marshal')) S.rep = Math.max(0, (S.rep ?? 70) - 2);
+        return ['Vandals', `Someone got onto the course overnight and cut up the greens on hole${hs.length > 1 ? 's' : ''} ${hs.map(i => i + 1).join(', ')}. ${N('marshal') ? 'Your marshals are on it.' : 'With no marshals, word has got around.'}`]; } },
+    cartbreak: { icon: '🔧', w: 0.6, cool: 25, at: [7, 9], when: () => L('carts') > 0,
+      fire() { addMod('cartbreak', 'Carts off the road', '🔧', nowT(), nowT() + DAY_LEN, { nocarts: 1, course: 0.92 });
+        return ['Carts grounded', 'The golf cart fleet failed its safety check. Everyone walks today, so rounds take longer.']; } },
+
+    // ---------------- offers and requests ----------------
+    sponsor: { icon: '🍺', w: 0.7, cool: 45, at: [9, 14], when: () => stars() >= 2 && courseHoles() > 0, choice: true,
+      ask() {
+        const pay = roundTo(fairFee9() * 60 + 1500);
+        return { kicker: 'An offer', title: 'Sponsorship offer', text: `Hollow Hill Brewery wants its logo on every tee sign for a month and offers ${fmt(pay)} up front. Some golfers will find it a bit tacky.`,
+          options: [
+            { label: `Accept ${fmt(pay)}`, sub: 'Golfers are a little less happy for 30 days', apply() { earn(pay, 'other'); addMod('sponsor', 'Brewery sponsorship', '🍺', nowT(), nowT() + MONTH_DAYS * DAY_LEN, { mood: -2 }); return `You signed with the brewery for ${fmt(pay)}.`; } },
+            { label: 'Turn it down', sub: 'Nothing changes', apply: () => 'You turned the brewery down. The tee signs stay clean.' }] };
+      } },
+    filmcrew: { icon: '🎬', w: 0.5, cool: 40, at: [10, 15], when: () => courseOK() && builtHoles().length >= 3, choice: true,
+      ask() {
+        const pay = roundTo(fairFee9() * 40 + 2500), hole = pickOf(builtHoles());
+        return { kicker: 'A request', title: 'Film crew', text: `A production company wants to shoot a car advert on hole ${hole + 1} tomorrow morning. They offer ${fmt(pay)}, but the course would be closed until 13:00.`,
+          options: [
+            { label: `Accept ${fmt(pay)}`, sub: 'Course closed tomorrow 06:00–13:00 · a little publicity', apply() { earn(pay, 'events'); addMod('filmcrew', 'Film crew on the course', '🎬', atT(S.day + 1, 6), atT(S.day + 1, 13), { close: ['course'], film: hole + 1 }, 'Filming'); S.rep = Math.min(100, (S.rep ?? 70) + 2); return `The film crew booked hole ${hole + 1} for tomorrow morning and paid ${fmt(pay)}.`; } },
+            { label: 'Decline', sub: 'Keep the course open', apply: () => 'You declined the film crew.' }] };
+      } },
+    charity: { icon: '🎗', w: 0.6, cool: 45, at: [9, 15], when: () => courseOK(), choice: true,
+      ask() {
+        return { kicker: 'A request', title: 'Charity morning', text: 'The local hospice asks whether it can hold a free fundraising scramble on your course tomorrow morning. You would lose a morning of green fees.',
+          options: [
+            { label: 'Host it for free', sub: 'Course closed tomorrow 07:00–12:00 · reputation +6 · busier afterwards', apply() { addMod('charity', 'Charity scramble', '🎗', atT(S.day + 1, 7), atT(S.day + 1, 12), { close: ['course'] }, 'Charity scramble'); addMod('goodwill', 'Goodwill', '💚', atT(S.day + 1, 12), atT(S.day + 4, 12), { arrive: 1.1 }); S.rep = Math.min(100, (S.rep ?? 70) + 6); return 'You are hosting the hospice fundraiser tomorrow morning. The town is talking about it.'; } },
+            { label: 'Politely decline', sub: 'Reputation −2', apply() { S.rep = Math.max(0, (S.rep ?? 70) - 2); return 'You declined the hospice. A few locals were disappointed.'; } }] };
+      } },
+    bonus: { icon: '🤝', w: 0.7, cool: 35, at: [8, 12], when: () => Object.keys(STAFF_PLURAL).some(r => (S.staff[r] || 0) >= 2), choice: true,
+      ask() {
+        const role = pickOf(Object.keys(STAFF_PLURAL).filter(r => (S.staff[r] || 0) >= 2)), n = S.staff[role], sal = STAFF.find(x => x.id === role).sal * DAY_LEN, pay = roundTo(n * sal * 2, 50), who = STAFF_PLURAL[role];
+        return { kicker: 'Your staff', title: 'A bonus for the team?', text: `Your ${n} ${who} have been working flat out and ask for a one-off bonus of ${fmt(pay)}. They hint that saying no might not go down well.`,
+          options: [
+            { label: `Pay ${fmt(pay)}`, sub: 'They stay happy', apply() { spend(pay, 'wages'); return `You paid your ${who} a ${fmt(pay)} bonus.`; } },
+            { label: 'Say no', sub: 'Risk a one-day strike tomorrow', apply() {
+              if (Math.random() < 0.6) { addMod('strike', `${who[0].toUpperCase() + who.slice(1)} on strike`, '✊', atT(S.day + 1, 7), atT(S.day + 1, 19), { strike: role }); return `Your ${who} are walking out tomorrow from 07:00 to 19:00.`; }
+              return `Your ${who} grumbled, but they are carrying on.`; } }] };
+      } },
+    poach: { icon: '🕴', w: 0.5, cool: 40, at: [10, 15], when: () => ['keeper', 'chef', 'marshal', 'coach'].some(r => (S.staff[r] || 0) >= 1), choice: true,
+      ask() {
+        ensureRival();
+        const role = pickOf(['keeper', 'chef', 'marshal', 'coach'].filter(r => (S.staff[r] || 0) >= 1)), name = STAFF.find(x => x.id === role).name.toLowerCase(), pay = roundTo(STAFF.find(x => x.id === role).sal * DAY_LEN * 12, 50);
+        return { kicker: 'Rival news', title: 'Poaching attempt', text: `${S.rival.name} has offered your best ${name} a job. Match it with a ${fmt(pay)} retention bonus, or let them go.`,
+          options: [
+            { label: `Match it: ${fmt(pay)}`, sub: 'They stay', apply() { spend(pay, 'wages'); return `Your ${name} is staying, for a ${fmt(pay)} bonus.`; } },
+            { label: 'Let them go', sub: `You lose one ${name}`, apply() { S.staff[role] = Math.max(0, (S.staff[role] || 0) - 1); return `Your ${name} left for ${S.rival.name}.`; } }] };
+      } },
+    balldeal: { icon: '🛒', w: 0.7, cool: 25, at: [9, 15], when: () => rangeOK(), choice: true,
+      ask() {
+        const r = rangeObjs().find(o => o.r), unit = withRange(r, () => cost(byId.order) / 500), n = 1500, price = roundTo(unit * n * 0.5, 10);
+        return { kicker: 'An offer', title: 'Bulk ball deal', text: `A supplier is clearing stock: ${n.toLocaleString('en-US')} range balls for ${fmt(price)}, half the usual price.`,
+          options: [
+            { label: `Buy for ${fmt(price)}`, sub: `+${n.toLocaleString('en-US')} balls for ${rangeObjs().length > 1 ? rangeName(r) : 'your range'}`, apply() {
+              spend(price, 'supplies'); withRange(r, () => { S.owned += n; S.stock = Math.min(ballCap(), S.stock + n); }); return `${n.toLocaleString('en-US')} range balls delivered for ${fmt(price)}.`; } },
+            { label: 'No thanks', sub: 'Nothing changes', apply: () => 'You passed on the ball deal.' }] };
+      } },
+    members: { icon: '📝', w: 0.6, cool: 45, at: [10, 16], when: () => (S.members || 0) >= 15, choice: true,
+      ask() {
+        const lose = Math.max(1, Math.round(S.members * 0.08)), price = Math.round(S.prices.member * 0.9);
+        return { kicker: 'Your members', title: 'Members’ petition', text: `${Math.round(S.members * 0.4)} members signed a petition asking for a cheaper membership. They want ${fmt(price)} a month instead of ${fmt(S.prices.member)}.`,
+          options: [
+            { label: `Cut to ${fmt(price)}`, sub: 'Members happier · less income each', apply() { S.prices.member = price; S.rep = Math.min(100, (S.rep ?? 70) + 2); return `Membership now costs ${fmt(price)} a month.`; } },
+            { label: 'Keep the price', sub: `About ${lose} members leave`, apply() { S.members = Math.max(0, S.members - lose); return `${lose} members cancelled in protest.`; } }] };
+      } },
+    wedding: { icon: '💍', w: 0.5, cool: 40, at: [10, 16], when: () => L('terrace') > 0 && L('resto') > 0, choice: true,
+      ask() {
+        const pay = roundTo(4000 + 1500 * L('resto'));
+        return { kicker: 'A booking', title: 'Wedding reception', text: `A couple wants to hold their wedding reception at the club tomorrow evening and offers ${fmt(pay)}. The terrace and restaurant would be closed to golfers from 15:00.`,
+          options: [
+            { label: `Accept ${fmt(pay)}`, sub: 'Terrace and restaurant private from 15:00 tomorrow', apply() { earn(pay, 'events'); addMod('wedding', 'Wedding reception', '💍', atT(S.day + 1, 15), atT(S.day + 2, 0), { close: ['venue:terrace', 'venue:resto'] }, 'Private function'); return `The wedding is booked for tomorrow evening, for ${fmt(pay)}.`; } },
+            { label: 'Decline', sub: 'Nothing changes', apply: () => 'You turned the wedding down.' }] };
+      } },
+  };
+
+  // ---- scheduling: each night the dice decide whether something happens tomorrow, and when
+  const EV_CHANCE = { off: 0, rare: 0.2, normal: 0.4, often: 0.7 };
+  function scheduleRandomEvent() {
+    S.mods = (S.mods || []).filter(m => m.until > nowT());
+    const ch = EV_CHANCE[SETTINGS.events || 'normal'] ?? 0.4;
+    if (S.evNext || S.day < 3 || S.scenario === 'sandbox' && SETTINGS.events !== 'often' || Math.random() >= ch) return;
+    S.evCool ||= {};
+    const pool = Object.entries(RANDOM_EVENTS).filter(([k, E]) => (S.evCool[k] || 0) <= S.day && (() => { try { return E.when(); } catch { return false; } })());
+    if (!pool.length) return;
+    let x = Math.random() * pool.reduce((a, [, E]) => a + E.w, 0), key = pool[0][0];
+    for (const [k, E] of pool) { x -= E.w; if (x <= 0) { key = k; break; } }
+    const E = RANDOM_EVENTS[key];
+    S.evNext = { key, day: S.day, at: rnd(E.at[0], E.at[1]) };
+  }
+  const evQueue = [];
+  let evOpen = null, evSpeed = 1;
+  function logEvent(icon, title, text) { (S.evLog ||= []).unshift({ day: S.day, clock: S.clock, icon, title, text }); if (S.evLog.length > 14) S.evLog.length = 14; }
+  function fireRandomEvent(key) {
+    const E = RANDOM_EVENTS[key]; if (!E) return;
+    S.evCool ||= {}; S.evCool[key] = S.day + E.cool;
+    if (E.choice) { evQueue.push({ key, ...E.ask() }); return; }
+    const r = E.fire(); if (!r) return;
+    const [title, text, who] = r;
+    logEvent(E.icon, title, text);
+    toast('Club news', title, text, E.icon); Sound.chime();
+    if (who && !(narrow() && sheetOpen)) setTimeout(() => { if (visitors.includes(who)) inspect({ kind: 'golfer', o: who }); }, 300);
+    save();
+  }
+  function eventsTick() {
+    if (S.mods && S.mods.length) {
+      const t = nowT();
+      for (const m of S.mods) {
+        if (!m.begun && m.start <= t && m.until > t) { m.begun = true; if (m.start < t - 1 && m.start > t - DAY_LEN && m.note) toast('Club news', `${m.label} has started`, timeLeft(m), m.icon); }
+        if (!m.ended && m.until <= t) { m.ended = true; if (['heatwave', 'fog', 'powercut', 'geese', 'strike', 'cartbreak', 'filmcrew', 'charity', 'wedding'].includes(m.key)) toast('Club news', `${m.label}: over`, 'Back to normal.', m.icon); }
+      }
+      S.mods = S.mods.filter(m => m.until > t);
+      strikeRoles = new Set(activeMods().filter(m => m.eff.strike).map(m => m.eff.strike));
+    } else if (strikeRoles.size) strikeRoles = new Set();
+    const nx = S.evNext;
+    if (nx && (S.day > nx.day || hour() >= nx.at)) { S.evNext = null; if (S.day <= nx.day + 1) fireRandomEvent(nx.key); }
+    // offers wait for a quiet moment: not over the title screen or another window
+    if (evQueue.length && !evOpen && !atTitle && !menuOpen() && $('bankModal').hidden && $('cupModal').hidden && !settingsOpen() && $('slotModal').hidden) showEventCard(evQueue.shift());
+  }
+  function showEventCard(ev) {
+    evOpen = ev; evSpeed = speedIdx || lastSpeed || 1; setSpeed(0);
+    $('evIcon').textContent = RANDOM_EVENTS[ev.key].icon; $('evKicker').textContent = ev.kicker; $('evTitle').textContent = ev.title; $('evText').textContent = ev.text;
+    $('evOpts').innerHTML = ev.options.map((o, i) => `<button type="button" class="ev-opt${i ? '' : ' primary'}" data-evopt="${i}"><b>${o.label}</b><small>${o.sub}</small></button>`).join('');
+    $('evModal').hidden = false; Sound.ui('open');
+  }
+  $('evOpts').addEventListener('click', e => {
+    const b = e.target.closest('[data-evopt]'); if (!b || !evOpen) return;
+    const ev = evOpen, opt = ev.options[+b.dataset.evopt], res = opt.apply();
+    logEvent(RANDOM_EVENTS[ev.key].icon, ev.title, res);
+    $('evModal').hidden = true; evOpen = null; setSpeed(evSpeed);
+    toast('Club news', ev.title, res, RANDOM_EVENTS[ev.key].icon); Sound.chime(); renderPark(); save();
+  });
+  // a famous visitor's day out ends up in the papers either way
+  function celebLeaves(v) {
+    const m = moodOf(v);
+    if (m >= 60) { S.rep = Math.min(100, (S.rep ?? 70) + 6); addMod('celebpost', `${v.name} raves about you`, '⭐', nowT(), nowT() + 2 * DAY_LEN, { arrive: 1.3 });
+      logEvent('⭐', `${v.name} loved it`, `${v.name} posted glowing photos from ${clubName()}. Reputation +6 and a busier couple of days.`); toast('Club news', `${v.name} loved it`, 'Glowing photos all over social media. Expect a busier couple of days.', '⭐'); Sound.fanfare(); }
+    else { S.rep = Math.max(0, (S.rep ?? 70) - 4); logEvent('⭐', `${v.name} was not impressed`, `${v.name} complained about the visit in an interview. Reputation −4.`); toast('Club news', `${v.name} was not impressed`, 'They had a poor day and told everyone about it. Reputation −4.', '!'); }
+  }
+
+  // ---- the status pill and the news section in the Park → Events tab
+  function refreshEventPill() {
+    const ms = activeMods().concat((S.mods || []).filter(m => m.start > nowT() && m.start - nowT() < DAY_LEN)), el = $('pillEvent');
+    if (!ms.length) { if (!el.hidden) el.hidden = true; return; }
+    const m = ms[0], h = `<span class="ev-i">${m.icon}</span>${m.label} · ${timeLeft(m)}${ms.length > 1 ? ` <span style="opacity:.7">+${ms.length - 1}</span>` : ''}`;
+    if (el._h !== h) { el._h = h; el.innerHTML = h; } el.hidden = false;
+  }
+  $('pillEvent').addEventListener('click', () => { openPanel('park:events'); Sound.ui('open'); });
+  const MOD_FX = { arrive: v => `${v > 1 ? '+' : '−'}${Math.round(Math.abs(v - 1) * 100)}% golfers`, course: v => `${v > 1 ? '+' : '−'}${Math.round(Math.abs(v - 1) * 100)}% course demand`, range: v => `${v > 1 ? '+' : '−'}${Math.round(Math.abs(v - 1) * 100)}% range demand`,
+    food: v => `+${Math.round((v - 1) * 100)}% food and drink`, wear: v => `turf wears ${v}× faster`, mood: v => `mood ${v > 0 ? '+' : ''}${v}`, band_novice: () => 'many more beginners', nocarts: () => 'no golf carts',
+    strike: r => `${STAFF_PLURAL[r] || r} not working`, close: ks => `closed: ${ks.map(k => (facList().find(x => x.key === k) || { label: k.split(':')[1] || k }).label.toLowerCase()).join(', ')}` };
+  function newsHtml() {
+    const ms = (S.mods || []).filter(m => m.until > nowT()).sort((a, b) => a.start - b.start), log = S.evLog || [];
+    const fx = m => Object.entries(m.eff).map(([k, v]) => MOD_FX[k] ? MOD_FX[k](v) : '').filter(Boolean).join(' · ');
+    return `<div class="pk-h"><h3>Club news</h3><span>Random events: ${{ off: 'off', rare: 'rare', normal: 'normal', often: 'frequent' }[SETTINGS.events || 'normal']}</span></div>
+      ${ms.length ? `<div class="subhead" style="margin:0">Happening now</div>${ms.map(m => `<div class="news now"><i>${m.icon}</i><div><b>${m.label}</b><span>${fx(m)}</span></div><em>${timeLeft(m)}</em></div>`).join('')}` : ''}
+      ${log.length ? log.slice(0, 8).map(l => `<div class="news"><i>${l.icon}</i><div><b>${l.title}</b><span>${l.text}</span></div><em>${dateLabel(l.day, true)}</em></div>`).join('') : '<p class="muted" style="margin:0">Nothing has happened yet. News, offers and surprises turn up every few days.</p>'}`;
+  }
+
+  // ---- what it looks like: fog, heat haze, geese on the range, a film crew, strikers, a star over a celebrity
+  function drawEventSky() {
+    const fog = activeMods().find(m => m.eff.fog);
+    if (fog) { const left = (fog.until - nowT()) / DAY_LEN * 24, a = Math.min(1, left / 1.2) * 0.55; ctx.fillStyle = `rgba(225,232,236,${a})`; ctx.fillRect(0, 0, SW, SH); }
+    if (modOn('heat') && daylight() > 0.5) { ctx.fillStyle = 'rgba(255,170,70,0.07)'; ctx.fillRect(0, 0, SW, SH); }
+  }
+  const crewLooks = [0, 1, 2].map(k => ({ ...lookOf({ id: 7700 + k }), shirt: '#2b2f36', bottom: '#2b2f36', hat: k === 0 ? 'cap' : null, hatC: '#2b2f36' }));
+  function drawEventWorld(t) {
+    const ms = activeMods(); if (!ms.length && !visitors.some(v => v.celeb)) return;
+    if (ms.some(m => m.eff.geese)) forRanges(() => {
+      const x1 = rangeX1(), r = seeded(99);
+      for (let k = 0; k < 14; k++) {
+        const x = RX0 + 24 + r() * (x1 - RX0 - 48) + Math.sin(t * 0.07 + k) * 6, y = RY0 + 30 + r() * (FIELD_Y1 - RY0 - 60) + Math.cos(t * 0.05 + k * 2) * 4;
+        if (!vis(x - 8, y - 8, x + 8, y + 8)) continue;
+        const head = (Math.sin(t * 0.6 + k * 1.7) > 0.3), dir = k % 2 ? 1 : -1;
+        ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.beginPath(); ctx.ellipse(x + 1, y + 1.5, 4, 2, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#8b7d6b'; ctx.beginPath(); ctx.ellipse(x, y, 4.2, 2.4, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#5b5047'; ctx.beginPath(); ctx.ellipse(x - dir * 1, y - 0.3, 2.6, 1.6, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#1f2124'; ctx.lineWidth = 1.1; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(x + dir * 3.2, y - 0.6);
+        const hx = x + dir * (head ? 5.6 : 6.2), hy = head ? y - 4.6 : y + 1.2; ctx.lineTo(hx, hy); ctx.stroke();
+        ctx.fillStyle = '#1f2124'; ctx.beginPath(); ctx.arc(hx, hy, 1.1, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#f4f4f0'; ctx.fillRect(hx - 0.6, hy, 1.2, 0.6);
+      }
+    });
+    for (const m of ms) {
+      if (m.eff.film) {
+        const i = m.eff.film - 1; if (!holeOpen(i)) continue;
+        const g = hPt(i, 0.82); if (!vis(g.x - 40, g.y - 40, g.x + 40, g.y + 20)) continue;
+        ctx.strokeStyle = '#2b2f36'; ctx.lineWidth = 0.8; for (const dx of [-3, 0, 3]) { ctx.beginPath(); ctx.moveTo(g.x - 20, g.y - 7); ctx.lineTo(g.x - 20 + dx, g.y); ctx.stroke(); }
+        ctx.fillStyle = '#2b2f36'; ctx.fillRect(g.x - 24, g.y - 11, 8, 5); ctx.fillStyle = '#7fa3ba'; ctx.beginPath(); ctx.arc(g.x - 15.5, g.y - 8.5, 1.4, 0, Math.PI * 2); ctx.fill();
+        if (Math.sin(t * 3) > 0) { ctx.fillStyle = '#e8432e'; ctx.beginPath(); ctx.arc(g.x - 22.5, g.y - 12, 0.8, 0, Math.PI * 2); ctx.fill(); }
+        crewLooks.forEach((lk, k) => drawPerson(g.x - 12 + k * 9, g.y + 4 + (k % 2) * 4, lk, k === 0 ? { act: 'wave', k: (t * 0.5) % 1, scale: 1.1 } : { ang: Math.PI, scale: 1.1 }));
+        // the reflector
+        ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.beginPath(); ctx.ellipse(g.x + 18, g.y - 6, 4, 6, 0.3, 0, Math.PI * 2); ctx.fill();
+      }
+      if (m.eff.strike && hasObj('club')) {
+        const x0 = 1128 + CDX, y0 = 1476 + CDY; if (!vis(x0 - 20, y0 - 34, x0 + 90, y0 + 10)) continue;
+        for (let k = 0; k < 3; k++) {
+          const x = x0 + k * 30 + Math.sin(t * 0.6 + k) * 6, lk = staffLook(m.eff.strike === 'assist' ? 'shop' : m.eff.strike === 'keeper' ? 'keeper' : m.eff.strike === 'chef' ? 'chef' : m.eff.strike === 'bar' ? 'bar' : 'marshal', 50 + k);
+          drawPerson(x, y0, lk, { ang: Math.cos(t * 0.8 + k) > 0 ? 0 : Math.PI, walk: x * 0.5, scale: 1.05 });
+          ctx.strokeStyle = '#7a5a36'; ctx.lineWidth = 0.7; ctx.beginPath(); ctx.moveTo(x + 2, y0 - 8); ctx.lineTo(x + 2, y0 - 22); ctx.stroke();
+          ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(x - 7, y0 - 29, 19, 9); ctx.fillStyle = '#f4f1ea'; ctx.fillRect(x - 8, y0 - 30, 19, 9);
+          ctx.fillStyle = '#c8322a'; ctx.font = '800 5.6px Figtree, system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.fillText('STRIKE', x + 1.5, y0 - 23.6);
+        }
+      }
+    }
+    // a star over any famous visitor
+    for (const v of visitors) {
+      if (!v.celeb || v.state === 'drive' || v.state === 'gone') continue;
+      const y = v.y - 24 - Math.abs(Math.sin(t * 3)) * 2; if (!vis(v.x - 8, y - 8, v.x + 8, y + 8)) continue;
+      ctx.save(); ctx.translate(v.x, y); ctx.rotate(Math.sin(t * 2) * 0.15);
+      ctx.fillStyle = '#f2c14e'; ctx.strokeStyle = '#8a6a10'; ctx.lineWidth = 0.6; ctx.beginPath();
+      for (let k = 0; k < 10; k++) { const a = -Math.PI / 2 + k * Math.PI / 5, r = k % 2 ? 2 : 4.6; ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r); }
+      ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
+    }
+  }
+  // fallen branches after a storm
+  function drawBranch(k) {
+    ctx.save(); ctx.translate(k.x, k.y); ctx.rotate(k.rot || 0);
+    ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(-9, 0, 20, 3);
+    ctx.strokeStyle = '#6b4a2b'; ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(-10, 0); ctx.lineTo(10, -1); ctx.moveTo(-2, -0.5); ctx.lineTo(3, -6); ctx.moveTo(4, -0.8); ctx.lineTo(8, 4); ctx.stroke();
+    ctx.fillStyle = '#3f7d4f'; for (const [x, y] of [[3, -7], [9, 4], [10, -2], [-9, -1]]) { ctx.beginPath(); ctx.arc(x, y, 2.6, 0, Math.PI * 2); ctx.fill(); }
+    ctx.restore();
+  }
 
   // clicking a building opens the window that runs it
   function buildingAt(wx, wy) {
@@ -7609,7 +7947,7 @@ label.auto input { accent-color: var(--turf); }
   // overall demand from the whole population, given your prices
   function bandWeights(forCourse) {
     const r = forCourse ? ratioOf('fee9') : ratioOf('bucket');
-    return HCP_BANDS.map(b => [b, b.share * bandFit(b, forCourse) * valueDemand(1 + (r - 1) * b.priceE)]);
+    return HCP_BANDS.map(b => [b, b.share * modMult('band_' + b.k) * bandFit(b, forCourse) * valueDemand(1 + (r - 1) * b.priceE)]);
   }
   const hcpDemand = forCourse => { const w = bandWeights(forCourse); return w.reduce((a, x) => a + x[1], 0) / 0.95; };
   function pickBand(forCourse) {
@@ -7952,7 +8290,7 @@ label.auto input { accent-color: var(--turf); }
     Sound.update(dt, audioScene());
     uiT += dt; saveT += dt;
     refreshTop();
-    if (uiT > 0.25) { uiT = 0; if (treesDirty && !(gesture && gesture.type === 'paint')) { treesDirty = false; layout(); } refreshList(); refreshStats(); refreshHud(); paintInspector(); refreshFac(); renderPeople(); refreshSheetSub(); renderFinance(); if (sheetOpen && tab === 'tee') renderTeeSheet(); measurePads(); clampCam(); }
+    if (uiT > 0.25) { uiT = 0; if (treesDirty && !(gesture && gesture.type === 'paint')) { treesDirty = false; layout(); } refreshList(); refreshStats(); refreshHud(); paintInspector(); refreshFac(); renderPeople(); refreshEventPill(); refreshSheetSub(); renderFinance(); if (sheetOpen && tab === 'tee') renderTeeSheet(); measurePads(); clampCam(); }
     if (saveT > 5) { saveT = 0; save(); }
     achT += dt; if (achT > 1) { achT = 0; checkAchievements(); }
     presT += dt; if (presT > 20) { presT = 0; updatePresence(); }

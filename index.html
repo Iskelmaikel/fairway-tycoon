@@ -335,6 +335,9 @@ button { font-family: var(--font-body); }
 .scen-detail { width: 100%; text-align: left; background: #f6f3e8; border-radius: 12px; padding: 9px 12px; display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; }
 .title .scen-detail { background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.14); color: #fff; box-sizing: border-box; }
 .title .sd-h span { color: var(--gold); }
+.brush { display: inline-flex; gap: 4px; margin-right: 6px; }
+.brush .dmini { min-width: 34px; }
+.brush .dmini[aria-pressed="true"] { background: var(--gold); color: #1d2a1f; border-color: var(--gold); }
 .sd-h { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; } .sd-h span { color: #8a6a10; font-weight: 700; }
 .sd-row { display: flex; gap: 8px; align-items: baseline; } .sd-row i { font-style: normal; }
 .tier { display: grid; grid-template-columns: 26px 1fr; gap: 8px; padding: 7px 0; border-top: 1px solid var(--line); opacity: 0.6; }
@@ -944,7 +947,7 @@ label.auto input { accent-color: var(--turf); }
 <script>
 (() => {
   const $ = id => document.getElementById(id);
-  const GAME_VERSION = '0.39.0';   // bump with every release
+  const GAME_VERSION = '0.40.0';   // bump with every release
   const SAVE_KEY = 'fairway-tycoon-v2';
   // The desktop build (Electron) exposes window.fairwayPlatform; in a browser this is null and saves stay in localStorage.
   const Platform = window.fairwayPlatform || null;
@@ -1316,10 +1319,10 @@ label.auto input { accent-color: var(--turf); }
   const ownsAt = (design, x, y) => { const p = parcelAt(x, y); return !!p && !!S.world && S.world.land.includes(p.id); };
   const parcelPrice = () => Math.round(2000 * Math.pow(1.06, S.world ? S.world.land.length : 6) * ((S.smod && S.smod.land) || 1) / 100) * 100;
   // places you can't put a tee, green or feature: the range, roads, car parks, footpaths and the clubhouse grounds
-  function noBuild(x, y) {
+  function noBuild(x, y, wetOk) {
     if (x < 0 || y < 0 || x > W || y > LAND_Y1 - 6) return true;
-    const t = tileOf(x, y);
-    return occ[tIdx(Math.min(GW - 1, t.tx), Math.min(GH - 1, t.ty))] !== 0;   // buildings, car parks and the lake
+    const t = tileOf(x, y), o = occ[tIdx(Math.min(GW - 1, t.tx), Math.min(GH - 1, t.ty))];
+    return o !== 0 && !(wetOk && o === -2);   // buildings, car parks and water
   }
   const validSpot = (design, x, y) => ownsAt(design, x, y) && !noBuild(x, y);
 
@@ -1405,11 +1408,12 @@ label.auto input { accent-color: var(--turf); }
       const F = FEATS[f.type], { d, t } = distToHole(i, f.x, f.y), edge = d - Math.max(F.rx, F.ry) * 0.7;
       const dGreen = Math.hypot(f.x - gp.x, f.y - gp.y), dTee = Math.hypot(f.x - tp.x, f.y - tp.y);
       if (f.type === 'bunker') { if (dGreen < 48) gsBunk++; else if (edge < 26 && t > 0.15 && t < 0.98) fwBunk++; }
-      else if (f.type === 'pond' || f.type === 'lake') { if (t > 0.05 && t < 1.02) { if (d < Math.min(F.rx, F.ry) * 0.9) waterCarry++; else if (edge < 40) waterBeside++; } }
       else if (f.type === 'waste') { if (edge < 40 && t > 0 && t < 1.05) waste++; }
       else if (f.type === 'trees') { if (d < 95 && t > -0.05 && t < 1.1) treeN++; }
       else if (f.type === 'flowers') { if (dGreen < 70 || dTee < 70) flowers++; }
     }
+    { const wv = waterOnHole(i); if (wv.carry) waterCarry++; if (wv.beside) waterBeside++; }
+    const ev = elevOfHole(i);
     const a1 = Math.atan2(h.bend.y - tp.y, h.bend.x - tp.x), a2 = Math.atan2(gp.y - h.bend.y, gp.x - h.bend.x);
     let bendDeg = Math.abs(((a2 - a1) * 180 / Math.PI + 540) % 360 - 180);
     const parts = {
@@ -1419,9 +1423,10 @@ label.auto input { accent-color: var(--turf); }
       dunes: waste ? 2 : 0,
       trees: Math.min(2, Math.floor(treeN / 3)) + (flowers ? 1 : 0),
       shape: bendDeg > 22 ? 1 : 0,
+      elev: (Math.abs(ev.delta) >= 4 ? 1 : 0) + (ev.range >= 6 ? 1 : 0),
     };
     const rating = Math.min(HOLE_MAX_RATING, Object.values(parts).reduce((a, b) => a + b, 0));
-    return { yards, par, rating, parts, bendDeg, bunk: Math.min(3, gsBunk + fwBunk), water: (waterCarry ? 1 : 0) + (waterBeside ? 1 : 0), beach: waste ? 1 : 0, trees: Math.min(2, Math.floor(treeN / 3)) + (flowers ? 1 : 0) };
+    return { yards, par, rating, parts, bendDeg, elev: ev, bunk: Math.min(3, gsBunk + fwBunk), water: (waterCarry ? 1 : 0) + (waterBeside ? 1 : 0), beach: waste ? 1 : 0, trees: Math.min(2, Math.floor(treeN / 3)) + (flowers ? 1 : 0) };
   }
   const holeRating = i => G.info[i] ? G.info[i].rating : 0;
   // the live course: rebuild geometry, mirror it into S.holes (par etc. for the rest of the game) and the back-nine flag
@@ -1532,6 +1537,7 @@ label.auto input { accent-color: var(--turf); }
     let holes = 0; for (let i = 0; i < 18; i++) if (S.design && S.design.holes[i].built) holes += 6 + 2 * (S.holes[i].par - 3);
     if (S.design) for (const f of S.design.feats) holes += FEATS[f.type].upkeep;
     add('Course upkeep', holes);
+    if (S.world && S.world.terrain) add('Ponds and lakes', 0.8 * Math.max(0, waterCount() - (S.world.terrain.nat || 0)));
     add('Irrigation water', 10 * L('irrig') * (season() === 'summer' ? 1.6 : season() === 'winter' ? 0.4 : 1));
     add('Golf carts', 12 * L('carts'));
     add('Clubhouse', (hasObj('club') ? 20 : 0) + 25 * L('barRoom') * facShare('venue:bar') + 40 * L('resto') * facShare('venue:resto') + 15 * L('terrace') * facShare('venue:terrace') + 15 * L('locker') * facShare('venue:locker') + 10 * L('food') + 30 * L('reno'));
@@ -1755,7 +1761,7 @@ label.auto input { accent-color: var(--turf); }
       const x = r() * W, y = r() * H;
       if (y > LAND_Y1 - 8) continue;
       if ([[0, 0], [12, 12], [-12, 12], [12, -12], [-12, -12]].some(([a, b]) => { const tt = tileOf(x + a, y + b); if (tt.tx < 0 || tt.ty < 0 || tt.tx >= GW || tt.ty >= GH) return false; const i = tIdx(tt.tx, tt.ty); return occ[i] > 0 || isPath[i]; })) continue;
-      if (Math.hypot((x - LAKE.x) / (LAKE.rx + 18), (y - LAKE.y) / (LAKE.ry + 18)) < 1) continue;
+      if (wetAt(x, y) > 0.12 || wetAt(x + 10, y) > 0.2 || wetAt(x - 10, y) > 0.2 || wetAt(x, y + 10) > 0.2 || wetAt(x, y - 10) > 0.2) continue;
       if (clearsTree(liveGeo, x, y)) continue;
       trees.push({ x, y, r: 9 + r() * 9, s: r(), kind: r() < 0.18 ? 'pine' : 'oak' });
     }
@@ -2567,14 +2573,13 @@ label.auto input { accent-color: var(--turf); }
   }
 
   // ---- wildlife: ducks on the lake, and birds that fly over now and then ----
-  function drawDucks(t) {
-    if (!vis(LAKE.x - LAKE.rx, LAKE.y - LAKE.ry, LAKE.x + LAKE.rx, LAKE.y + LAKE.ry)) return;
-    const n = season() === 'winter' ? 3 : 5, night = daylight() < 0.25;
-    for (let k = 0; k < n; k++) {
-      const sp = night ? 0.004 : 0.03 + (k % 3) * 0.008, dirn = k % 2 ? 1 : -1, a = t * sp * dirn + k * 1.7;
-      const rx = LAKE.rx * (0.35 + 0.12 * (k % 3)), ry = LAKE.ry * (0.45 + 0.1 * ((k + 1) % 3));
-      const x = LAKE.x + Math.cos(a) * rx + (k === 1 ? 6 : 0), y = LAKE.y + Math.sin(a) * ry;
-      const hd = Math.atan2(Math.cos(a) * ry * dirn, -Math.sin(a) * rx * dirn);
+  function drawDucks(t, dt) {
+    if (!miniPass) stepDucks(dt || 0);
+    if (!ducks || !ducks.length) return;
+    const night = daylight() < 0.25;
+    for (const dk of ducks) {
+      const k = dk.k, x = dk.x, y = dk.y, hd = dk.hd;
+      if (!vis(x - 10, y - 10, x + 10, y + 10)) continue;
       const dabble = !night && ((t * 0.13 + k * 0.37) % 1) < 0.08;
       ctx.save(); ctx.translate(x, y); ctx.rotate(hd);
       // wake
@@ -2653,9 +2658,9 @@ label.auto input { accent-color: var(--turf); }
   function lieAt(i, x, y) {
     const gp = hPt(i, 1), dG = Math.hypot(x - gp.x, y - gp.y);
     if (dG <= greenR(i) - 1) return 'green';
+    if (inWater(x, y)) return 'water';
     const f = featAt(x, y, ['pond', 'lake', 'bunker', 'waste', 'trees']);
     if (f) return { pond: 'water', lake: 'water', bunker: 'bunker', waste: 'waste', trees: 'trees' }[f.type];
-    if (Math.hypot((x - LAKE.x) / LAKE.rx, (y - LAKE.y) / LAKE.ry) <= 1) return 'water';
     if (dG <= greenR(i) + 5) return 'fringe';
     const n = nearestOnHole(i, x, y);
     if (n.t > 0.1 && n.t < 0.94 && Math.abs(n.lat) < 16) return 'fairway';
@@ -2679,7 +2684,8 @@ label.auto input { accent-color: var(--turf); }
       const a = Math.random() * Math.PI * 2, r = D * rnd(0.06, 0.3) + 0.6;
       return { kind: 'putt', to: { x: pin.x + Math.cos(a) * r, y: pin.y + Math.sin(a) * r }, holed: false, dist: D };
     }
-    const maxC = (142 - sk * 80) * (b.lie === 'tee' ? 1 : 0.9) * L_.dist;
+    const drop = hmAt(b.x, b.y) - hmAt(pin.x, pin.y);   // downhill shots fly further, uphill ones come up short
+    const maxC = (142 - sk * 80) * (b.lie === 'tee' ? 1 : 0.9) * L_.dist * (1 + Math.max(-0.12, Math.min(0.12, drop * 0.006)));
     if (D <= maxC * 0.95 || D < 45) {
       // approach or chip at the flag
       const chip = D < 45;
@@ -2895,15 +2901,13 @@ label.auto input { accent-color: var(--turf); }
     // ground
     ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillRect(-4, -4, W + 8, H + 10);
     ctx.fillStyle = stripePattern(); ctx.fillRect(Math.max(0, V.x0), Math.max(0, V.y0), Math.min(W, V.x1) - Math.max(0, V.x0), Math.min(H, V.y1) - Math.max(0, V.y0));
-    if (vis(LAKE.x - LAKE.rx - 10, LAKE.y - LAKE.ry - 10, LAKE.x + LAKE.rx + 10, LAKE.y + LAKE.ry + 10)) water(LAKE.x, LAKE.y, LAKE.rx, LAKE.ry, 0.12);
-    drawDucks(t);
-
     const shown = [];
     for (let i = 0; i < 18; i++) { const b = holeBox(i); if (vis(...b)) shown.push(i); }
     for (const i of shown) drawHole(i, 'base');
+    drawTerrainShade(); drawWater(t); drawDucks(t, dt);
     drawFeatures('ground');
     for (const i of shown) drawHole(i, 'top');
-    drawRoad(); drawLots(); drawWorldPaths();
+    drawRoad(); drawLots(); drawWorldPaths(); drawBridges();
     drawCartPaths();
     forRanges(() => drawRangeStatic());
     drawAmenities(t);
@@ -3212,21 +3216,22 @@ label.auto input { accent-color: var(--turf); }
     if (o.type === 'club') return { tx: o.x + 13, ty: o.y + f.h };
     return { tx: o.x + Math.floor(f.w / 2), ty: o.y + f.h };
   }
-  const inLake = (x, y) => Math.hypot((x - LAKE.x) / (LAKE.rx + 6), (y - LAKE.y) / (LAKE.ry + 6)) < 1;
   const ownsTile = (tx, ty) => { const p = parcelAt(tx * TILE + 1, ty * TILE + 1); return !!p && !!S.world && S.world.land.includes(p.id); };
   function rebuildWorld() {
+    const freshTer = ensureTerrain();
     migrateRanges(); clampLevels();
     for (const o of rangeObjs()) o.x = fp(o).x;
     occ = new Int32Array(GW * GH); isPath = new Uint8Array(GW * GH);
     for (let ty = LAND_ROWS; ty < GH; ty++) for (let tx = 0; tx < GW; tx++) occ[tIdx(tx, ty)] = -1;   // the road
-    for (let ty = 0; ty < LAND_ROWS; ty++) for (let tx = 0; tx < GW; tx++) { const c = tileC(tx, ty); if (inLake(c.x, c.y)) occ[tIdx(tx, ty)] = -2; }
+    for (let i = 0; i < TN; i++) if (TER.w[i]) occ[i] = -2;   // water
     for (const o of objs()) {
       const f = fp(o);
       for (let ty = f.y; ty < f.y + f.h; ty++) for (let tx = f.x; tx < f.x + f.w; tx++) if (tx >= 0 && ty >= 0 && tx < GW && ty < GH) occ[tIdx(tx, ty)] = o.id;
     }
-    for (const i of (S.world ? S.world.paths : [])) if (!occ[i]) isPath[i] = 1;
+    for (const i of (S.world ? S.world.paths : [])) if (!occ[i] || occ[i] === -2) isPath[i] = 1;   // a path over water is a bridge
     worldVer++; fields.clear(); reach = null; t1Cache = findTee1(); treesDirty = true;
     syncAnchors();
+    if (freshTer && S.design && liveGeo) applyDesign();
   }
   // the range and clubhouse were drawn for fixed spots; these offsets move them to where you put them
   function syncAnchors() {
@@ -3365,7 +3370,7 @@ label.auto input { accent-color: var(--turf); }
     if (tx < 0 || ty < 0 || tx + f.w > GW || ty + f.h > LAND_ROWS) return { ok: false, why: 'Out of bounds.' };
     for (let y = ty; y < ty + f.h; y++) for (let x = tx; x < tx + f.w; x++) {
       if (!ownsTile(x, y)) return { ok: false, why: "You don't own all of this land. Buy more in the Land tool." };
-      if (blockedFor(moving, x, y)) return { ok: false, why: occ[tIdx(x, y)] === -2 ? "You can't build on the lake." : 'Something is already built here.' };
+      if (blockedFor(moving, x, y)) return { ok: false, why: occ[tIdx(x, y)] === -2 ? "You can't build on water." : 'Something is already built here.' };
       if (isPath[tIdx(x, y)] && !D.road) return { ok: false, why: 'Remove the footpath here first.' };
       const c = tileC(x, y); if (!D.decor && holeNear(c.x, c.y, 10) >= 0) return { ok: false, why: `This would cut into hole ${holeNear(c.x, c.y, 10) + 1}.` };
     }
@@ -3380,7 +3385,7 @@ label.auto input { accent-color: var(--turf); }
     spend(D.cost, 'build'); S.invested = (S.invested || 0) + D.cost;
     const no = { id: S.world.nextId++, type, x: tx, y: ty };
     if (type === 'range') { no.r = newRangeState(); no.r.mx = tx * TILE + 20; selRangeId = no.id; }
-    S.world.objs.push(no);
+    S.world.objs.push(no); levelPlot(fp(no));
     rebuildWorld(); layout(); Sound.kaching();
     return { ok: true };
   }
@@ -3408,7 +3413,7 @@ label.auto input { accent-color: var(--turf); }
     const ok = canPlace(o.type, tx, ty, o); if (!ok.ok) return ok;
     evictFrom(o.type, o);
     if (o.type === 'range') o.r.mx = shiftRange(o, tx).r.mx;
-    o.x = tx; o.y = ty; rebuildWorld(); layout(); Sound.chime();
+    o.x = tx; o.y = ty; levelPlot(fp(o)); rebuildWorld(); layout(); Sound.chime();
     if (o.type === 'range') withRange(o, () => pickers.forEach(p => { p.x = machinePos(0).x; p.y = TEE_Y - 16; p.state = 'idle'; p.target = -1; }));
     return { ok: true };
   }
@@ -3426,9 +3431,10 @@ label.auto input { accent-color: var(--turf); }
     if (tx < 0 || ty < 0 || tx >= GW || ty >= LAND_ROWS) return false;
     const i = tIdx(tx, ty), has = S.world.paths.includes(i);
     if (on) {
-      if (has || occ[i] !== 0 || !ownsTile(tx, ty) || S.money < PATH_COST) return false;
-      spend(PATH_COST, 'build'); S.world.paths.push(i);
-    } else { if (!has) return false; S.world.paths = S.world.paths.filter(x => x !== i); earn(PATH_COST / 2, 'other'); }
+      const cost = occ[i] === -2 ? BRIDGE_COST : PATH_COST;
+      if (has || (occ[i] !== 0 && occ[i] !== -2) || !ownsTile(tx, ty) || S.money < cost) return false;
+      spend(cost, 'build'); S.world.paths.push(i);
+    } else { if (!has) return false; S.world.paths = S.world.paths.filter(x => x !== i); earn((occ[i] === -2 ? BRIDGE_COST : PATH_COST) / 2, 'other'); }
     rebuildWorld(); return true;
   }
   function buyPlot(id) {
@@ -3490,6 +3496,406 @@ label.auto input { accent-color: var(--turf); }
     S.auto ||= { shop: true, food: true, fert: true, training: true };
     if (S.design) S.design.land = S.world.land;
     rebuildWorld();
+  }
+
+  // ---------- Terrain: hills, valleys and water ----------
+  // Heights are stored per tile in half-metre steps; water is a per-tile flag. Both are drawn smoothed:
+  // heights as hillshading, water as rounded shorelines traced from a smoothed field.
+  const TN = GW * LAND_ROWS, H_MIN = -12, H_MAX = 32, H_STEP = 0.5;
+  const TERRA = {
+    raise:   { label: 'Raise land',  short: 'Raise',   cost: 8,  help: 'Brush to build up hills. Each pass adds about a metre in the middle of the brush.' },
+    lower:   { label: 'Lower land',  short: 'Lower',   cost: 8,  help: 'Brush to dig out hollows and valleys.' },
+    flatten: { label: 'Level land',  short: 'Level',   cost: 8,  help: 'Brush to level the ground to the height where you start.' },
+    smooth:  { label: 'Smooth land', short: 'Smooth',  cost: 6,  help: 'Brush to soften steep banks and bumps.' },
+    water:   { label: 'Dig water',   short: 'Water',   cost: 90, help: 'Paint ponds, lakes and streams. Water beside or across a hole raises its rating. Lay footpath over water for a bridge.' },
+    drain:   { label: 'Fill in water', short: 'Fill in', cost: 45, help: 'Brush over water to fill it back in with turf.' },
+  };
+  const BRUSH = [{ k: 'S', r: 0.6 }, { k: 'M', r: 2 }, { k: 'L', r: 3.1 }];
+  const BRIDGE_COST = 60;
+  const TERRA_IC = {
+    raise: '<path d="M3 20h18M5 20c2-6 4-9 7-9s5 3 7 9M12 3v6M9 6l3-3 3 3"/>',
+    lower: '<path d="M3 11h4c1 6 3 8 5 8s4-2 5-8h4M12 3v6M9 6l3 3 3-3"/>',
+    flatten: '<path d="M3 15h18M3 19h18M6 11c2-3 4-4 6-4s4 1 6 4"/>',
+    smooth: '<path d="M3 16c3-6 5-6 7-2s5 4 11-3M3 20h18"/>',
+    water: '<path d="M12 3c3 5 6 8 6 11a6 6 0 0 1-12 0c0-3 3-6 6-11z"/><path d="M9 15a3 3 0 0 0 3 3"/>',
+    drain: '<path d="M12 3c3 5 6 8 6 11a6 6 0 0 1-12 0c0-3 3-6 6-11z"/><path d="M4 4l16 16"/>',
+  };
+  const isTerraTool = t => !!(t && TERRA[t.kind]);
+  let TER = { h: new Int16Array(TN), w: new Uint8Array(TN), src: null, ver: 1 };
+  let terBrush = 1, terStroke = null, terDirtyT = 0;
+
+  // ---- storage: compact strings in the save
+  function encTer() {
+    let h = '', w = '';
+    for (let i = 0; i < TN; i++) { h += String.fromCharCode(36 + TER.h[i] - H_MIN); w += TER.w[i] ? '1' : '0'; }
+    const nat = S.world.terrain ? S.world.terrain.nat || 0 : 0;
+    S.world.terrain = { h, w, nat }; TER.src = S.world.terrain; TER.ver++;
+  }
+  function decTer(t) {
+    TER.h = new Int16Array(TN); TER.w = new Uint8Array(TN);
+    for (let i = 0; i < TN; i++) { TER.h[i] = Math.max(H_MIN, Math.min(H_MAX, (t.h.charCodeAt(i) || 48) - 36 + H_MIN)); TER.w[i] = t.w.charCodeAt(i) === 49 ? 1 : 0; }
+    TER.src = t; TER.ver++;
+  }
+  const waterCount = () => { let n = 0; for (let i = 0; i < TN; i++) n += TER.w[i]; return n; };
+
+  // ---- a new park's ground: gentle rolling land, shaped by the scenario, with the old lake as water
+  const TER_STYLE = { fresh: [3, 9], rescue: [3, 9], city: [1.2, 12], seaside: [4, 4], oakmere: [5, 10], frost: [4, 8], estate: [9, 12], champ: [7, 10], sandbox: [4, 10] };
+  function genTerrain(seedKey) {
+    const [amp, scale] = TER_STYLE[S.scenario] || [3, 9];
+    const r = seeded(7 + (seedKey || 0));
+    const oct = [[scale, 1], [scale / 2, 0.45], [scale / 4, 0.2]].map(([s, a]) => { const gw = Math.ceil(GW / s) + 2, gh = Math.ceil(LAND_ROWS / s) + 2; return { s, a, gw, g: Array.from({ length: gw * gh }, () => r() * 2 - 1) }; });
+    const ss = x => x * x * (3 - 2 * x);
+    TER.h = new Int16Array(TN); TER.w = new Uint8Array(TN);
+    for (let ty = 0; ty < LAND_ROWS; ty++) for (let tx = 0; tx < GW; tx++) {
+      let v = 0;
+      for (const o of oct) { const u = tx / o.s, w = ty / o.s, i = Math.floor(u), j = Math.floor(w), fx = ss(u - i), fy = ss(w - j), G_ = (a, b) => o.g[b * o.gw + a];
+        v += o.a * ((G_(i, j) * (1 - fx) + G_(i + 1, j) * fx) * (1 - fy) + (G_(i, j + 1) * (1 - fx) + G_(i + 1, j + 1) * fx) * fy); }
+      const edge = Math.min(1, (LAND_ROWS - 1 - ty) / 6);                 // meets the road level
+      TER.h[ty * GW + tx] = Math.round(Math.max(H_MIN, Math.min(H_MAX, v * amp * 2 * edge + 1)));
+    }
+    // the lake that was always there
+    let nat = 0;
+    for (let ty = 0; ty < LAND_ROWS; ty++) for (let tx = 0; tx < GW; tx++) { const c = tileC(tx, ty); if (Math.hypot((c.x - LAKE.x) / (LAKE.rx + 6), (c.y - LAKE.y) / (LAKE.ry + 6)) < 1) { TER.w[ty * GW + tx] = 1; nat++; } }
+    // ponds and lake strips from the course designer become water
+    if (S.design && Array.isArray(S.design.feats)) {
+      for (const f of S.design.feats) {
+        if (f.type !== 'pond' && f.type !== 'lake') continue;
+        const F = FEATS[f.type], t0 = tileOf(f.x, f.y);
+        for (let ty = t0.ty - 5; ty <= t0.ty + 5; ty++) for (let tx = t0.tx - 5; tx <= t0.tx + 5; tx++) {
+          if (tx < 0 || ty < 0 || tx >= GW || ty >= LAND_ROWS) continue;
+          const c = tileC(tx, ty); if (inEllipse(c.x, c.y, f.x, f.y, F.rx + 8, F.ry + 8, f.rot || 0) || (tx === t0.tx && ty === t0.ty)) TER.w[ty * GW + tx] = 1;
+        }
+      }
+      S.design.feats = S.design.feats.filter(f => f.type !== 'pond' && f.type !== 'lake');
+    }
+    // water sits in a hollow, and buildings stand on level plots
+    for (let i = 0; i < TN; i++) if (TER.w[i]) TER.h[i] = Math.max(H_MIN, TER.h[i] - 2);
+    for (const o of (S.world ? S.world.objs : [])) levelPlot(fp(o), true);
+    S.world.terrain = { h: '', w: '', nat }; encTer(); S.world.terrain.nat = nat;
+  }
+  // level a building's footprint (free: the builders do it)
+  function levelPlot(f, quiet) {
+    let s = 0, n = 0;
+    for (let y = f.y; y < f.y + f.h; y++) for (let x = f.x; x < f.x + f.w; x++) if (x >= 0 && y >= 0 && x < GW && y < LAND_ROWS) { s += TER.h[y * GW + x]; n++; }
+    if (!n) return;
+    const avg = Math.round(s / n);
+    for (let y = f.y; y < f.y + f.h; y++) for (let x = f.x; x < f.x + f.w; x++) if (x >= 0 && y >= 0 && x < GW && y < LAND_ROWS) { TER.h[y * GW + x] = avg; TER.w[y * GW + x] = 0; }
+    if (!quiet) encTer();
+  }
+  // called before the world's grid is rebuilt: decode the save, or make terrain for a park that has none
+  function ensureTerrain() {
+    if (!S.world) return false;
+    const t = S.world.terrain;
+    if (!t || typeof t.h !== 'string' || t.h.length !== TN || typeof t.w !== 'string' || t.w.length !== TN) { genTerrain(S.world.land.length); return true; }
+    if (TER.src !== t) decTer(t);
+    return false;
+  }
+
+  // ---- reading the ground
+  const tH = (tx, ty) => TER.h[Math.max(0, Math.min(LAND_ROWS - 1, ty)) * GW + Math.max(0, Math.min(GW - 1, tx))];
+  const tW = (tx, ty) => tx < 0 || ty < 0 || tx >= GW || ty >= LAND_ROWS ? 0 : TER.w[ty * GW + tx];
+  const isWaterTile = (tx, ty) => !!tW(tx, ty);
+  // height in metres at a point (bilinear between tile centres)
+  function hmAt(x, y) {
+    const u = x / TILE - 0.5, v = y / TILE - 0.5, i = Math.floor(u), j = Math.floor(v), fx = u - i, fy = v - j;
+    return H_STEP * ((tH(i, j) * (1 - fx) + tH(i + 1, j) * fx) * (1 - fy) + (tH(i, j + 1) * (1 - fx) + tH(i + 1, j + 1) * fx) * fy);
+  }
+  // how wet a point is, 0..1; the shoreline is 0.5. Matches the drawn water exactly.
+  const sst = x => x * x * (3 - 2 * x);
+  function rawWet(x, y) {
+    const u = x / TILE - 0.5, v = y / TILE - 0.5, i = Math.floor(u), j = Math.floor(v), fx = sst(u - i), fy = sst(v - j);
+    return (tW(i, j) * (1 - fx) + tW(i + 1, j) * fx) * (1 - fy) + (tW(i, j + 1) * (1 - fx) + tW(i + 1, j + 1) * fx) * fy;
+  }
+  // the drawn water comes from a softened version of that field, so read the same one
+  function wetAt(x, y) {
+    const g = traceWater(), Q = TQ, u = x / TILE * Q, v = y / TILE * Q, i = Math.floor(u), j = Math.floor(v), fx = u - i, fy = v - j, NX = g.NX, NY = g.NY;
+    const at = (a, b) => a < 0 || b < 0 || a >= NX || b >= NY ? 0 : g.v[b * NX + a];
+    return (at(i, j) * (1 - fx) + at(i + 1, j) * fx) * (1 - fy) + (at(i, j + 1) * (1 - fx) + at(i + 1, j + 1) * fx) * fy;
+  }
+  const inWater = (x, y) => y < LAND_Y1 && wetAt(x, y) >= 0.5;
+  // water a hole plays over or alongside
+  function waterOnHole(i) {
+    const hs = G.hs[i], wet = hs.map(q => q.t >= 0.05 && q.t <= 1.02 && inWater(q.x, q.y));
+    const carry = wet.some(Boolean);
+    let beside = false;
+    for (let k = 0; k < hs.length && !beside; k++) {
+      const q = hs[k]; if (q.t < 0.05 || q.t > 1.02) continue;
+      let near = false; for (let m = Math.max(0, k - 8); m <= Math.min(hs.length - 1, k + 8); m++) if (wet[m]) { near = true; break; }
+      if (near) continue;   // that's the carry, not water alongside
+      const t = tileOf(q.x, q.y);
+      for (let dy = -3; dy <= 3 && !beside; dy++) for (let dx = -3; dx <= 3; dx++) if (tW(t.tx + dx, t.ty + dy)) { const c = tileC(t.tx + dx, t.ty + dy); if (Math.hypot(c.x - q.x, c.y - q.y) < 56) { beside = true; break; } }
+    }
+    return { carry, beside };
+  }
+  // ups and downs along a hole, in metres
+  function elevOfHole(i) {
+    const h = G.design.holes[i], a = hmAt(h.tee.x, h.tee.y), b = hmAt(h.green.x, h.green.y);
+    let lo = Infinity, hi = -Infinity;
+    for (const q of G.hs[i]) { if (q.t < 0 || q.t > 1) continue; const z = hmAt(q.x, q.y); lo = Math.min(lo, z); hi = Math.max(hi, z); }
+    return { delta: Math.round((b - a) * 2) / 2, range: Math.round((hi - lo) * 2) / 2 };
+  }
+  // is a green ringed by water?
+  function islandGreen(i) {
+    const g = G.design.holes[i].green, R = greenR(i) + 32;
+    for (let k = 0; k < 16; k++) { const a = k / 16 * Math.PI * 2; if (!inWater(g.x + Math.cos(a) * R, g.y + Math.sin(a) * R)) return false; }
+    return true;
+  }
+
+  // ---- why a tile can't be landscaped
+  function terraWhy(op, tx, ty) {
+    if (tx < 0 || ty < 0 || tx >= GW || ty >= LAND_ROWS - 1) return 'Out of bounds.';
+    if (!ownsTile(tx, ty)) return "You don't own this land.";
+    const i = tIdx(tx, ty), o = occ[i];
+    if (o > 0 || o === -1) return 'Something is built here.';
+    if (op === 'water') {
+      if (isPath[i]) return 'Remove the footpath here first.';
+      const c = tileC(tx, ty);
+      for (let k = 0; k < 18; k++) { if (!holeOpen(k)) continue; const h = G.design.holes[k]; if (Math.hypot(c.x - h.green.x, c.y - h.green.y) < greenR(k) + 12 || Math.hypot(c.x - h.tee.x, c.y - h.tee.y) < 22) return 'Keep water off tees and greens.'; }
+    }
+    return '';
+  }
+  // brush the ground around a point; returns what it cost (0 if nothing changed)
+  function terraBrush(op, wx, wy) {
+    const st = terStroke || (terStroke = { op, seen: new Map(), cost: 0, target: null, why: '', wet: false });
+    const c = tileOf(wx, wy), R = BRUSH[terBrush].r, n = Math.ceil(R);
+    if (op === 'flatten' && st.target === null) st.target = tH(c.tx, c.ty);
+    const edits = [];
+    for (let dy = -n; dy <= n; dy++) for (let dx = -n; dx <= n; dx++) {
+      const d = Math.hypot(dx, dy); if (d > R) continue;
+      const tx = c.tx + dx, ty = c.ty + dy, why = terraWhy(op, tx, ty);
+      if (why) { if (!edits.length) st.why = why; continue; }
+      const i = ty * GW + tx, fall = 1 - Math.pow(d / (R + 0.6), 2), cur = TER.h[i];
+      if (op === 'raise' || op === 'lower') {
+        const want = Math.max(1, Math.round(2 * fall)), done = st.seen.get(i) || 0, add = want - done;
+        if (add <= 0) continue;
+        const nh = Math.max(H_MIN, Math.min(H_MAX, cur + (op === 'raise' ? add : -add)));
+        if (nh === cur) continue;
+        edits.push([i, nh, null, Math.abs(nh - cur) * TERRA[op].cost]); st.seen.set(i, want);
+      } else if (op === 'flatten') {
+        const nh = fall > 0.55 ? st.target : Math.round(cur + (st.target - cur) * 0.5);
+        if (nh === cur) continue;
+        edits.push([i, nh, null, Math.abs(nh - cur) * TERRA[op].cost]);
+      } else if (op === 'smooth') {
+        if (st.seen.has(i)) continue;
+        let s = 0, k = 0; for (let yy = -1; yy <= 1; yy++) for (let xx = -1; xx <= 1; xx++) { s += tH(tx + xx, ty + yy); k++; }
+        const nh = Math.round((cur + s / k) / 2); st.seen.set(i, 1);
+        if (nh === cur) continue;
+        edits.push([i, nh, null, Math.abs(nh - cur) * TERRA[op].cost]);
+      } else if (op === 'water' && !TER.w[i]) edits.push([i, Math.max(H_MIN, cur - 2), 1, TERRA.water.cost]);
+      else if (op === 'drain' && TER.w[i]) edits.push([i, cur + 2 > H_MAX ? cur : cur + 2, 0, TERRA.drain.cost]);
+    }
+    if (!edits.length) return 0;
+    const cost = edits.reduce((a, e) => a + e[3], 0);
+    if (S.money < cost) { st.why = 'Not enough cash.'; return 0; }
+    for (const [i, nh, w] of edits) { TER.h[i] = nh; if (w !== null) { TER.w[i] = w; st.wet = true; } }
+    spend(cost, 'build'); S.invested = (S.invested || 0) + cost; st.cost += cost; st.why = '';
+    encTer();
+    if (st.wet) rebuildWorld();
+    terDirtyT = 0.25;
+    return cost;
+  }
+  function endTerraStroke() {
+    if (!terStroke) return;
+    const st = terStroke; terStroke = null;
+    if (st.cost) {
+      applyDesign(); if (st.wet) layout();
+      if (st.op === 'water' || st.op === 'drain') Sound.splash(SW / 2, 0.5); else Sound.sand(SW / 2, 0.5);
+      for (let i = 0; i < 18; i++) if (holeOpen(i) && islandGreen(i)) { unlockAch('ACH_ISLAND'); break; }
+      save();
+    }
+    if (tool && isTerraTool(tool)) { tool.msg = st.why || (st.cost ? `That cost ${fmt(st.cost)}.` : ''); tool.bad = !!st.why; paintBuildBar(); }
+  }
+  // ratings follow the ground while you sculpt, a few times a second
+  function terraTick(dt) {
+    if (terDirtyT > 0) { terDirtyT -= dt; if (terDirtyT <= 0) { applyDesign(); if (sheetOpen) refreshList(); } }
+  }
+
+  // ---- drawing: hillshade
+  const TQ = 4;   // samples per tile
+  let shadeCv = null, shadeVer = -1, shadeField = null;
+  function shadeCanvas() {
+    if (shadeCv && shadeVer === TER.ver) return shadeCv;
+    shadeVer = TER.ver;
+    const NX = GW * TQ, NY = LAND_ROWS * TQ, f = new Float32Array(NX * NY);
+    for (let y = 0; y < NY; y++) for (let x = 0; x < NX; x++) f[y * NX + x] = hmAt((x + 0.5) * TILE / TQ, (y + 0.5) * TILE / TQ);
+    // two box blurs round off the facets
+    const tmp = new Float32Array(NX * NY);
+    for (let pass = 0; pass < 2; pass++) {
+      for (let y = 0; y < NY; y++) for (let x = 0; x < NX; x++) { let s = 0, k = 0; for (let d = -2; d <= 2; d++) { const xx = x + d; if (xx >= 0 && xx < NX) { s += f[y * NX + xx]; k++; } } tmp[y * NX + x] = s / k; }
+      for (let y = 0; y < NY; y++) for (let x = 0; x < NX; x++) { let s = 0, k = 0; for (let d = -2; d <= 2; d++) { const yy = y + d; if (yy >= 0 && yy < NY) { s += tmp[yy * NX + x]; k++; } } f[y * NX + x] = s / k; }
+    }
+    if (!shadeCv) { shadeCv = document.createElement('canvas'); }
+    shadeCv.width = NX; shadeCv.height = NY;
+    const c = shadeCv.getContext('2d'), img = c.createImageData(NX, NY), d = img.data;
+    for (let y = 0; y < NY; y++) for (let x = 0; x < NX; x++) {
+      const i = y * NX + x, l = f[y * NX + Math.max(0, x - 1)], r = f[y * NX + Math.min(NX - 1, x + 1)], u = f[Math.max(0, y - 1) * NX + x], dn = f[Math.min(NY - 1, y + 1) * NX + x];
+      // light from the upper left; height adds a little warmth on hilltops and shade in hollows
+      const slope = ((l - r) + (u - dn)) * 0.55, lift = (f[i] - 0.5) * 0.018;
+      let b = slope + lift; b = b > 0 ? Math.min(0.2, b * 0.7) : Math.max(-0.4, b);
+      const o = i * 4;
+      if (b >= 0) { d[o] = 255; d[o + 1] = 246; d[o + 2] = 200; d[o + 3] = Math.round(b * 255); }
+      else { d[o] = 4; d[o + 1] = 24; d[o + 2] = 12; d[o + 3] = Math.round(-b * 255); }
+    }
+    c.putImageData(img, 0, 0);
+    shadeField = { f, NX, NY };
+    return shadeCv;
+  }
+  function drawTerrainShade() {
+    const cv_ = shadeCanvas();
+    // only the part on screen, scaled with plain bilinear filtering (the source is already smooth)
+    const k = TQ / TILE, x0 = Math.max(0, Math.floor(V.x0 * k)), y0 = Math.max(0, Math.floor(V.y0 * k)), x1 = Math.min(cv_.width, Math.ceil(V.x1 * k) + 1), y1 = Math.min(cv_.height, Math.ceil(V.y1 * k) + 1);
+    if (x1 <= x0 || y1 <= y0) return;
+    ctx.save(); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'low';
+    ctx.drawImage(cv_, x0, y0, x1 - x0, y1 - y0, x0 / k, y0 / k, (x1 - x0) / k, (y1 - y0) / k);
+    ctx.restore();
+  }
+
+  // ---- drawing: water, traced with marching squares over a smoothed field
+  let waterGeo = null, waterVer = -1;
+  function traceWater() {
+    if (waterGeo && waterVer === TER.ver) return waterGeo;
+    waterVer = TER.ver;
+    if (!waterGeo) waterGeo = { fill: new Path2D(), edge: new Path2D(), shore: [], bodies: [], glints: [], any: false, v: new Float32Array(1), NX: 1, NY: 1 };
+    const Q = TQ, s = TILE / Q, NX = GW * Q + 1, NY = LAND_ROWS * Q + 1, v = new Float32Array(NX * NY), tmp = new Float32Array(NX * NY);
+    let any = false;
+    for (let y = 0; y < NY; y++) for (let x = 0; x < NX; x++) { const w = rawWet(x * s, y * s); v[y * NX + x] = w; if (w > 0) any = true; }
+    // soften the corners: two small box blurs
+    if (any) for (let pass = 0; pass < 2; pass++) {
+      for (let y = 0; y < NY; y++) for (let x = 0; x < NX; x++) { let a = 0; for (let d = -2; d <= 2; d++) { const xx = x + d; if (xx >= 0 && xx < NX) a += v[y * NX + xx]; } tmp[y * NX + x] = a / 5; }
+      for (let y = 0; y < NY; y++) for (let x = 0; x < NX; x++) { let a = 0; for (let d = -2; d <= 2; d++) { const yy = y + d; if (yy >= 0 && yy < NY) a += tmp[yy * NX + x]; } v[y * NX + x] = a / 5; }
+    }
+    const fill = new Path2D(), edge = new Path2D(), shore = [];
+    if (any) for (let y = 0; y < NY - 1; y++) {
+      let runX = -1;
+      const flush = xe => { if (runX >= 0) { fill.rect(runX * s, y * s, (xe - runX) * s, s); runX = -1; } };
+      for (let x = 0; x < NX - 1; x++) {
+        const a = v[y * NX + x], b = v[y * NX + x + 1], c = v[(y + 1) * NX + x + 1], d = v[(y + 1) * NX + x];
+        const ia = a >= 0.5, ib = b >= 0.5, ic = c >= 0.5, id = d >= 0.5;
+        if (ia && ib && ic && id) { if (runX < 0) runX = x; continue; }
+        flush(x);
+        if (!ia && !ib && !ic && !id) continue;
+        // corners clockwise with the crossings between them
+        const P = [[x, y, a], [x + 1, y, b], [x + 1, y + 1, c], [x, y + 1, d]], poly = [], cut = [];
+        for (let k = 0; k < 4; k++) {
+          const [x0, y0, v0] = P[k], [x1, y1, v1] = P[(k + 1) % 4];
+          if (v0 >= 0.5) poly.push([x0 * s, y0 * s]);
+          if ((v0 >= 0.5) !== (v1 >= 0.5)) { const t = (0.5 - v0) / (v1 - v0), p = [(x0 + (x1 - x0) * t) * s, (y0 + (y1 - y0) * t) * s]; poly.push(p); cut.push(p); }
+        }
+        fill.moveTo(poly[0][0], poly[0][1]); for (let k = 1; k < poly.length; k++) fill.lineTo(poly[k][0], poly[k][1]); fill.closePath();
+        for (let k = 0; k + 1 < cut.length; k += 2) { edge.moveTo(cut[k][0], cut[k][1]); edge.lineTo(cut[k + 1][0], cut[k + 1][1]); if ((x + y) % 3 === 0) shore.push(cut[k]); }
+      }
+      flush(NX - 1);
+    }
+    // bodies of water, for ducks and the ambience
+    const seen = new Uint8Array(TN), bodies = [];
+    for (let i = 0; i < TN; i++) {
+      if (!TER.w[i] || seen[i]) continue;
+      const q = [i], tiles = []; seen[i] = 1;
+      while (q.length) { const j = q.pop(); tiles.push(j); const tx = j % GW, ty = (j / GW) | 0;
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = tx + dx, ny = ty + dy; if (nx < 0 || ny < 0 || nx >= GW || ny >= LAND_ROWS) continue; const k = ny * GW + nx; if (TER.w[k] && !seen[k]) { seen[k] = 1; q.push(k); } } }
+      const inner = tiles.filter(j => { const tx = j % GW, ty = (j / GW) | 0; return tW(tx + 1, ty) && tW(tx - 1, ty) && tW(tx, ty + 1) && tW(tx, ty - 1); });
+      let cx = 0, cy = 0; for (const j of tiles) { cx += (j % GW) * TILE + TILE / 2; cy += ((j / GW) | 0) * TILE + TILE / 2; }
+      bodies.push({ n: tiles.length, tiles, inner, x: cx / tiles.length, y: cy / tiles.length });
+    }
+    bodies.sort((a, b) => b.n - a.n);
+    // a few sparkles per body, seeded so they stay put
+    const r = seeded(TER.ver % 997 + 5), glints = [];
+    for (const b of bodies) for (let k = 0; k < Math.min(24, Math.ceil(b.inner.length / 3)); k++) { const j = b.inner[Math.floor(r() * b.inner.length)]; glints.push({ x: (j % GW) * TILE + r() * TILE, y: ((j / GW) | 0) * TILE + r() * TILE, ph: r() * 6 }); }
+    waterGeo = { fill, edge, shore, bodies, glints, any, v, NX, NY };
+    ducks = null;
+    return waterGeo;
+  }
+  function drawWater(t) {
+    const g = traceWater(); if (!g.any) return;
+    const winter = season() === 'winter' && S.wx !== 'sunny' && hour() < 10;
+    ctx.save();
+    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    ctx.strokeStyle = '#2f6b4a'; ctx.lineWidth = 9; ctx.stroke(g.edge);                // muddy bank
+    ctx.strokeStyle = 'rgba(160,140,90,0.55)'; ctx.lineWidth = 5; ctx.stroke(g.edge);  // a sandy lip
+    ctx.clip(g.fill);
+    ctx.fillStyle = winter ? '#9fc4d8' : '#3d93c9'; ctx.fill(g.fill);                   // open water is lighter in the middle
+    ctx.strokeStyle = winter ? '#7fa9c2' : '#2a6f9e'; ctx.lineWidth = 14; ctx.stroke(g.edge);
+    ctx.strokeStyle = 'rgba(25,80,110,0.5)'; ctx.lineWidth = 5; ctx.stroke(g.edge);
+    // glints that come and go
+    ctx.strokeStyle = 'rgba(255,255,255,0.38)'; ctx.lineWidth = 1.3;
+    for (const p of g.glints) { if (!vis(p.x - 8, p.y - 8, p.x + 8, p.y + 8)) continue; const a = 0.5 + 0.5 * Math.sin(t * 0.9 + p.ph); if (a < 0.3) continue; ctx.globalAlpha = a; ctx.beginPath(); ctx.arc(p.x, p.y, 4 + 2 * Math.sin(p.ph), Math.PI * 1.1, Math.PI * 1.85); ctx.stroke(); }
+    ctx.globalAlpha = 1;
+    ctx.restore();
+    // reeds along the shore
+    if (cam.s > 0.45) {
+      ctx.strokeStyle = '#4c7f3a'; ctx.lineWidth = 1.2;
+      for (let k = 0; k < g.shore.length; k += 2) { const [x, y] = g.shore[k]; if (!vis(x - 6, y - 8, x + 6, y + 2)) continue; const sway = Math.sin(t * 1.3 + x * 0.1) * 0.8; ctx.beginPath(); ctx.moveTo(x - 1.5, y); ctx.lineTo(x - 2 + sway, y - 5); ctx.moveTo(x, y); ctx.lineTo(x + sway, y - 6.5); ctx.moveTo(x + 1.5, y); ctx.lineTo(x + 2 + sway, y - 4.5); ctx.stroke(); }
+    }
+  }
+  // bridges where a footpath crosses water
+  function drawBridges() {
+    if (!S.world || !traceWater().any) return;
+    const tx0 = Math.max(0, Math.floor(V.x0 / TILE)), ty0 = Math.max(0, Math.floor(V.y0 / TILE)), tx1 = Math.min(GW - 1, Math.ceil(V.x1 / TILE)), ty1 = Math.min(LAND_ROWS - 1, Math.ceil(V.y1 / TILE));
+    for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) {
+      const i = tIdx(tx, ty); if (!isPath[i] || !TER.w[i]) continue;
+      const x = tx * TILE, y = ty * TILE, horiz = (isPath[tIdx(Math.max(0, tx - 1), ty)] || isPath[tIdx(Math.min(GW - 1, tx + 1), ty)]) && !(isPath[tIdx(tx, Math.max(0, ty - 1))] || isPath[tIdx(tx, ty + 1)]);
+      ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(x + 2, y + 4, TILE, TILE - 2);
+      ctx.fillStyle = '#9a7448'; ctx.fillRect(x, y + 1, TILE, TILE - 2);
+      ctx.fillStyle = '#7d5c36';
+      for (let k = 0; k < 5; k++) horiz ? ctx.fillRect(x + k * 4, y + 1, 1, TILE - 2) : ctx.fillRect(x, y + 1 + k * 4, TILE, 1);
+      ctx.fillStyle = '#5b4126';
+      if (horiz) { ctx.fillRect(x, y, TILE, 2); ctx.fillRect(x, y + TILE - 2, TILE, 2); }
+      else { ctx.fillRect(x, y, 2, TILE); ctx.fillRect(x + TILE - 2, y, 2, TILE); }
+    }
+  }
+  // ducks paddle between open-water spots on the bigger ponds
+  let ducks = null;
+  function stepDucks(dt) {
+    const g = traceWater();
+    if (!ducks) {
+      ducks = [];
+      for (const b of g.bodies.slice(0, 4)) { if (b.inner.length < 4) continue; const n = Math.min(5, Math.max(1, Math.floor(b.inner.length / 8))); for (let k = 0; k < n; k++) { const j = b.inner[Math.floor(Math.random() * b.inner.length)]; const p = tileC(j % GW, (j / GW) | 0); ducks.push({ x: p.x, y: p.y, b, tx: p.x, ty: p.y, hd: 0, k: ducks.length, wait: Math.random() * 4 }); } }
+    }
+    const night = daylight() < 0.25, sp = night ? 1.2 : 4.5;
+    for (const d of ducks) {
+      const dx = d.tx - d.x, dy = d.ty - d.y, l = Math.hypot(dx, dy);
+      if (l < 1.5) { d.wait -= dt; if (d.wait <= 0) { const j = d.b.inner[Math.floor(Math.random() * d.b.inner.length)], p = tileC(j % GW, (j / GW) | 0), mx = (p.x + d.x) / 2, my = (p.y + d.y) / 2;
+          if (Math.hypot(p.x - d.x, p.y - d.y) < 140 && wetAt(mx, my) > 0.7) { d.tx = p.x + rnd(-5, 5); d.ty = p.y + rnd(-5, 5); } d.wait = rnd(1, 6); } continue; }
+      const m = Math.min(l, sp * dt); d.x += dx / l * m; d.y += dy / l * m; d.hd = Math.atan2(dy, dx);
+    }
+  }
+
+  // ---- landscaping overlay: contour lines every metre, and the brush
+  let contourCache = null, contourVer = -1;
+  function contourPaths() {
+    if (contourCache && (contourVer === TER.ver || performance.now() - contourCache.at < 300)) return contourCache;
+    shadeCanvas(); contourVer = TER.ver;
+    const { f: v, NX, NY } = shadeField, s = TILE / TQ, o = s / 2;
+    const minor = new Path2D(), major = new Path2D();
+    for (let y = 0; y < NY - 1; y++) for (let x = 0; x < NX - 1; x++) {
+      const a = v[y * NX + x], b = v[y * NX + x + 1], c = v[(y + 1) * NX + x + 1], d = v[(y + 1) * NX + x];
+      const lo = Math.ceil(Math.min(a, b, c, d)), hi = Math.floor(Math.max(a, b, c, d));
+      if (hi < lo) continue;
+      const C = [[x, y, a], [x + 1, y, b], [x + 1, y + 1, c], [x, y + 1, d]];
+      for (let lv = lo; lv <= hi; lv++) {
+        const cut = [];
+        for (let k = 0; k < 4; k++) { const [x0, y0, v0] = C[k], [x1, y1, v1] = C[(k + 1) % 4]; if ((v0 >= lv) !== (v1 >= lv)) { const t = (lv - v0) / (v1 - v0); cut.push([(x0 + (x1 - x0) * t) * s + o, (y0 + (y1 - y0) * t) * s + o]); } }
+        const P = lv % 5 === 0 ? major : minor;
+        for (let k = 0; k + 1 < cut.length; k += 2) { P.moveTo(cut[k][0], cut[k][1]); P.lineTo(cut[k + 1][0], cut[k + 1][1]); }
+      }
+    }
+    contourCache = { minor, major, at: performance.now() };
+    return contourCache;
+  }
+  function drawTerraOverlay(t) {
+    const c = contourPaths();
+    ctx.save(); ctx.lineJoin = 'round';
+    ctx.strokeStyle = 'rgba(255,248,215,0.22)'; ctx.lineWidth = 1 / Math.max(0.5, cam.s); ctx.stroke(c.minor);
+    ctx.strokeStyle = 'rgba(255,248,215,0.5)'; ctx.lineWidth = 1.8 / Math.max(0.5, cam.s); ctx.stroke(c.major);
+    ctx.restore();
+    const hv = tool.hw; if (!hv) return;
+    const R = (BRUSH[terBrush].r + 0.5) * TILE, op = tool.kind, col = op === 'water' ? '#7fd0ff' : op === 'drain' ? '#d9c48a' : op === 'lower' ? '#ff9b6b' : '#f2c14e';
+    const tc = tileOf(hv.x, hv.y), bad = terraWhy(op, tc.tx, tc.ty);
+    ctx.strokeStyle = bad ? '#e8432e' : col; ctx.lineWidth = 2 / Math.max(0.5, cam.s); ctx.setLineDash([6, 4]);
+    ctx.beginPath(); ctx.arc(tc.tx * TILE + TILE / 2, tc.ty * TILE + TILE / 2, R, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = '#fff'; ctx.font = `800 ${Math.round(12 / Math.max(0.6, cam.s))}px Figtree, system-ui, sans-serif`; ctx.textAlign = 'center';
+    const z = hmAt(hv.x, hv.y);
+    ctx.fillText(isWaterTile(tc.tx, tc.ty) ? `Water · bed ${z.toFixed(1)} m` : `${z >= 0 ? '+' : ''}${z.toFixed(1)} m`, tc.tx * TILE + TILE / 2, tc.ty * TILE + TILE / 2 - R - 6);
   }
 
   // ---- amenities golfers visit: putting green, short game area, academy
@@ -5309,7 +5715,9 @@ label.auto input { accent-color: var(--turf); }
       let n = 0; for (const v of visitors) if (v.state !== 'drive' && v.state !== 'gone' && v.state !== 'golf' && Math.abs(v.x - cx) < 170 && Math.abs(v.y - cy) < 150) n++;
       crowd.add(cx, cy, Math.min(1.3, n / 10));
     }
-    const lake = earOf(LAKE.x, LAKE.y), road = earOf(cam.x + SW / cam.s / 2, ROAD_Y);
+    const wb = traceWater().bodies.filter(b => b.n >= 6), vx = cam.x + SW / cam.s / 2, vy = cam.y + SH / cam.s / 2;
+    const nb = wb.length ? wb.reduce((a, b) => Math.hypot(b.x - vx, b.y - vy) < Math.hypot(a.x - vx, a.y - vy) ? b : a) : null;
+    const lake = nb ? earOf(nb.x, nb.y) : { w: 0, pan: 0 }, road = earOf(cam.x + SW / cam.s / 2, ROAD_Y);
     // the clubhouse bell rings when the course opens in the morning and closes at dusk
     const dk = isDark();
     if (wasDark !== null && dk !== wasDark && !atTitle && Math.abs(S.clock - bellClock) < 30) Sound.bell(dk ? 'close' : 'open', club ? onScreenX((club.x + OBJ.club.w / 2) * TILE) : SW / 2);
@@ -5359,23 +5767,21 @@ label.auto input { accent-color: var(--turf); }
   const D_TOOLS = [
     ['hole', 'Move hole', 'Drag the tee (T), bend (•) and green (G) of the selected hole. Par follows the length.'],
     ['place', 'Place hole', 'Tap where the tee goes, then tap where the green goes. You can fine-tune it afterwards with Move hole.'],
-    ['adjust', 'Select', 'Tap a bunker, pond, dunes, trees or flowers to select it. Drag it to move it and turn it with the rotate buttons (or R).'],
+    ['adjust', 'Select', 'Tap a bunker, dunes, trees or flowers to select it. Drag it to move it and turn it with the rotate buttons (or R).'],
     ['bunker', 'Bunker', 'Tap to place a bunker. Greenside and fairway bunkers raise a hole’s rating.'],
-    ['pond', 'Pond', 'Tap to dig a pond. Water beside the line of play raises the rating.'],
-    ['lake', 'Lake strip', 'Tap to dig a lake strip. Lay it across the hole for a forced carry.'],
     ['waste', 'Sand dunes', 'Tap to lay sandy dunes with beach grass along a hole.'],
     ['trees', 'Trees', 'Tap to plant a cluster of trees. Tree-lined holes look and play better.'],
     ['flowers', 'Flowers', 'Tap to plant a flowerbed near a tee or green.'],
-    ['remove', 'Remove', 'Tap a bunker, pond, dunes, trees or flowers to remove it.'],
+    ['remove', 'Remove', 'Tap a bunker, dunes, trees or flowers to remove it.'],
     ['land', 'Buy land', 'Tap a parcel to see its price, then buy it to build there.'],
   ];
-  const PART_LABEL = { length: 'Length', bunkers: 'Bunkers', water: 'Water', dunes: 'Dunes', trees: 'Trees & flowers', shape: 'Dogleg' };
+  const PART_LABEL = { length: 'Length', bunkers: 'Bunkers', water: 'Water', dunes: 'Dunes', trees: 'Trees & flowers', shape: 'Dogleg', elev: 'Elevation' };
   const dd = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 
   function holeValid(design, geo, i) {
     const h = design.holes[i];
     if (!h.built) return { ok: true };
-    for (const k of ['tee', 'bend', 'green']) if (!validSpot(design, h[k].x, h[k].y)) return { ok: false, why: ownsAt(design, h[k].x, h[k].y) ? `The ${k} can't go on a building, car park or the lake.` : `The ${k} is on land you don't own.` };
+    for (const k of ['tee', 'bend', 'green']) if (!(ownsAt(design, h[k].x, h[k].y) && !noBuild(h[k].x, h[k].y, k === 'bend'))) return { ok: false, why: ownsAt(design, h[k].x, h[k].y) ? `The ${k} can't go on a building, car park or water.` : `The ${k} is on land you don't own.` };
     const y = geo.info[i].yards;
     if (y < MIN_YD) return { ok: false, why: `Too short (${y} yd). Holes need at least ${MIN_YD} yd.` };
     if (y > MAX_YD) return { ok: false, why: `Too long (${y} yd). Holes can be at most ${MAX_YD} yd.` };
@@ -5460,7 +5866,7 @@ label.auto input { accent-color: var(--turf); }
   function designTap(x, y) {
     dMsg = '';
     if (dTool === 'place') {
-      if (!validSpot(draft, x, y)) { dMsg = ownsAt(draft, x, y) ? "You can't build on buildings, car parks or the lake." : "You don't own this land. Buy it with the Buy land tool."; Sound.ui('soft'); refreshDesign(); return; }
+      if (!validSpot(draft, x, y)) { dMsg = ownsAt(draft, x, y) ? "You can't build on buildings, car parks or water." : "You don't own this land. Buy it with the Buy land tool."; Sound.ui('soft'); refreshDesign(); return; }
       const p = { x: Math.round(x), y: Math.round(y) };
       if (!dPlaceTee) { dPlaceTee = p; Sound.ui('tap'); refreshDesign(); return; }
       const h = draft.holes[selHole];
@@ -5486,7 +5892,7 @@ label.auto input { accent-color: var(--turf); }
     const rot = dTool === 'trees' || dTool === 'flowers' ? 0 : Math.round(dRot * 100) / 100;
     const pts = [[0, 0], [F.rx * 0.8, 0], [-F.rx * 0.8, 0], [0, F.ry * 0.8], [0, -F.ry * 0.8]].map(([u, w]) => ({ x: x + u * Math.cos(rot) - w * Math.sin(rot), y: y + u * Math.sin(rot) + w * Math.cos(rot) }));
     const bad = pts.find(p => !validSpot(draft, p.x, p.y));
-    if (bad) { dMsg = ownsAt(draft, bad.x, bad.y) ? "You can't build on buildings, car parks or the lake." : "You don't own this land. Buy it with the Buy land tool."; Sound.ui('soft'); refreshDesign(); return; }
+    if (bad) { dMsg = ownsAt(draft, bad.x, bad.y) ? "You can't build on buildings, car parks or water." : "You don't own this land. Buy it with the Buy land tool."; Sound.ui('soft'); refreshDesign(); return; }
     draft.feats.push({ id: featId++, type: dTool, x: Math.round(x), y: Math.round(y), rot });
     Sound.ui('tap'); rebuildDraft();
   }
@@ -5527,7 +5933,7 @@ label.auto input { accent-color: var(--turf); }
         <div class="dfoot"><div id="dCost"></div><div class="dbtns"><button class="ghost" type="button" id="dCancel">Cancel</button><button class="buy" type="button" id="dBuild">Build</button></div></div>`;
     } else {
       $('list').innerHTML = `<div class="holes-strip">${holeStripHtml()}</div><div class="hole-head" id="holeHead"></div>
-        <div class="dopen"><button class="buy" type="button" id="dOpen">Open course designer</button><span>Move holes, add bunkers, water, dunes, trees and flowers, buy land and build new holes. The game pauses while you design.</span></div>
+        <div class="dopen"><button class="buy" type="button" id="dOpen">Open course designer</button><span>Move holes, add bunkers, dunes, trees and flowers, buy land and build new holes. The game pauses while you design. Dig ponds and shape hills with Landscaping in the Build tab.</span></div>
         ${teesHtml()}<div class="subhead">Whole course</div>${items.map(rowHtml).join('')}`;
     }
   }
@@ -5545,7 +5951,7 @@ label.auto input { accent-color: var(--turf); }
     const buildBtn = designing && !S.design.holes[i].built ? (h.built ? `<button class="ghost dmini" type="button" id="dToggleBuild">Don't build it</button>` : `<button class="buy dmini" type="button" id="dPlaceHole">${dTool === 'place' ? 'Placing…' : 'Place this hole'}</button>`) : '';
     if (designing && !h.built) { head.innerHTML = `<b>Hole ${i + 1}</b> · not placed yet ${buildBtn}<span>${dTool === 'place' ? (dPlaceTee ? 'Now tap where the green goes.' : 'Tap your land where the tee goes.') : 'Place it anywhere on land you own, then fine-tune it.'}</span>`; return; }
     head.innerHTML = (h.built || designing)
-      ? `<b>Hole ${i + 1}</b> · Par ${inf.par} · ${inf.yards} yd${h.built ? ` · rating ${inf.rating}/${HOLE_MAX_RATING} · turf <b class="${turfOf(i) < 60 ? 'neg' : ''}">${Math.round(turfOf(i))}%</b>` : ' · planned'} ${buildBtn}<span class="chips">${partsHtml(inf)}</span>${v.ok ? '' : `<span class="neg">${v.why}</span>`}`
+      ? `<b>Hole ${i + 1}</b> · Par ${inf.par} · ${inf.yards} yd${inf.elev && Math.abs(inf.elev.delta) >= 1 ? ` · ${inf.elev.delta > 0 ? 'uphill' : 'downhill'} ${Math.abs(inf.elev.delta)} m` : ''}${h.built ? ` · rating ${inf.rating}/${HOLE_MAX_RATING} · turf <b class="${turfOf(i) < 60 ? 'neg' : ''}">${Math.round(turfOf(i))}%</b>` : ' · planned'} ${buildBtn}<span class="chips">${partsHtml(inf)}</span>${v.ok ? '' : `<span class="neg">${v.why}</span>`}`
       : `<b>Hole ${i + 1}</b> <span>Not built yet. Open the course designer and place it wherever you like on your land.</span>`;
   }
   function refreshDesign() {
@@ -5996,7 +6402,7 @@ label.auto input { accent-color: var(--turf); }
   cv.addEventListener('pointerdown', e => {
     cv.setPointerCapture?.(e.pointerId);
     lastPointerType = e.pointerType || 'mouse';
-    if (tool && (tool.kind === 'path' || tool.kind === 'unpath') && e.pointerType === 'mouse' && e.button === 0) { const w = toWorld(e.clientX, e.clientY); ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY }); gesture = { type: 'paint', moved: true }; buildDrag(w.x, w.y); return; }
+    if (tool && (tool.kind === 'path' || tool.kind === 'unpath' || isTerraTool(tool)) && e.pointerType === 'mouse' && e.button === 0) { const w = toWorld(e.clientX, e.clientY); ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY }); gesture = { type: 'paint', moved: true }; buildDrag(w.x, w.y); return; }
     if (e.button === 2) return;
     ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
     glide = null; cam.vx = cam.vy = 0;
@@ -6031,6 +6437,7 @@ label.auto input { accent-color: var(--turf); }
   function endPointer(e) {
     if (!ptrs.has(e.pointerId)) return;
     ptrs.delete(e.pointerId);
+    if (gesture && gesture.type === 'paint' && terStroke) { endTerraStroke(); refreshList(); }
     if (gesture && gesture.type === 'pan' && !gesture.moved && e.type === 'pointerup') {
       const w = toWorld(e.clientX, e.clientY), hi = designing ? -1 : holeAt(w.x, w.y);
       if (tool) buildTap(w.x, w.y);
@@ -6373,6 +6780,7 @@ label.auto input { accent-color: var(--turf); }
     ['ACH_ELITE', 'Scratch club', 'Welcome 25 elite handicap golfers in one month.', () => ((S.hcpLog && S.hcpLog.month.elite) || 0) >= 25],
     ['ACH_ACADEMY', 'Learning centre', 'Open a golf academy with a teaching pro.', () => hasObj('academy') && N('coach') > 0],
     ['ACH_FIVE_STAR', 'Five-star club', 'Reach a 5-star rating.', () => starsC >= 5],
+    ['ACH_ISLAND', 'Island green', 'Surround a green with water.', () => false],
     ['ACH_EVENT', 'Event host', 'Host a successful event.', () => Object.keys(S.eventsDone || {}).length >= 1],
     ['ACH_SCENARIO', 'Mission accomplished', 'Complete every goal in a scenario.', () => goalList().length > 0 && (S.goalIdx || 0) >= goalList().length],
     ['ACH_RESCUE', 'Turnaround', 'Complete the Pine Hollow Rescue.', () => S.scenario === 'rescue' && (S.goalIdx || 0) >= GOALS.rescue.length],
@@ -6434,6 +6842,7 @@ label.auto input { accent-color: var(--turf); }
     if (e.target.matches && e.target.matches('input[type=text]')) return;
     if (uiBlocked() || e.ctrlKey || e.metaKey || e.altKey) return;
     if (designing && k === 'r') { rotateDesign(e.shiftKey ? -1 : 1); return; }
+    if (isTerraTool(tool) && (k === '[' || k === ']')) { terBrush = Math.max(0, Math.min(BRUSH.length - 1, terBrush + (k === ']' ? 1 : -1))); paintBuildBar(); Sound.ui('tap'); return; }
     if (k === 'f5') { e.preventDefault(); save(); toast('Quick save', clubName(), 'Saved to the autosave slot.', '✓'); return; }
     if (/^[1-6]$/.test(k)) { toggleWindow(WIN_ORDER[+k - 1]); Sound.ui(sheetOpen ? 'open' : 'close'); return; }
     if (k === 'tab') { e.preventDefault(); if (sheetOpen) cycleWindowTab(e.shiftKey ? -1 : 1); return; }
@@ -8063,11 +8472,12 @@ label.auto input { accent-color: var(--turf); }
   let tool = null, ghostT = null;
   const TOOL_HELP = {
     place: d => isTouch() ? `Tap the map to position the ${d.label.toLowerCase()}, then press Place.` : `Click to place the ${d.label.toLowerCase()}. Right-click or Esc to stop.`,
-    path: () => isTouch() ? 'Tap tiles to lay footpath. Drag to look around.' : 'Click and drag to lay footpath. Right-click or Esc to stop.',
+    path: () => (isTouch() ? 'Tap tiles to lay footpath. Drag to look around.' : 'Click and drag to lay footpath. Right-click or Esc to stop.') + ` Over water it becomes a bridge (${fmt(BRIDGE_COST)} a tile).`,
     unpath: () => isTouch() ? 'Tap footpath tiles to remove them.' : 'Click and drag over footpath to remove it.',
     erase: () => 'Tap something you built to demolish it (you get 40% back). The range and clubhouse can only be moved.',
     land: () => 'Tap a plot for sale to see its price, then buy it.',
     move: () => 'Tap a building to pick it up, then put it somewhere else. Moving is free.',
+    ...Object.fromEntries(Object.keys(TERRA).map(k => [k, () => TERRA[k].help + (isTouch() ? ' Tap to brush; drag to look around.' : ' Click and drag to brush. [ and ] change the brush.')])),
   };
   let lastPointerType = 'mouse';
   window.addEventListener('pointerdown', e => { lastPointerType = e.pointerType || 'mouse'; }, true);
@@ -8100,10 +8510,11 @@ label.auto input { accent-color: var(--turf); }
       return;
     }
     const D = tool.kind === 'place' ? OBJ[tool.type] : null;
-    const title = D ? (tool.moveId ? `Move: ${D.label}` : `${D.label} · ${fmt(D.cost)}`) : { path: `Footpath · ${fmt(PATH_COST)} a tile`, unpath: 'Remove footpath', erase: 'Demolish', land: 'Buy land', move: 'Move a building' }[tool.kind];
+    const TT = TERRA[tool.kind], title = TT ? `${TT.label} · ${tool.kind === 'water' || tool.kind === 'drain' ? `${fmt(TT.cost)} a tile` : `${fmt(TT.cost * 2)} a metre a tile`}` : D ? (tool.moveId ? `Move: ${D.label}` : `${D.label} · ${fmt(D.cost)}`) : { path: `Footpath · ${fmt(PATH_COST)} a tile`, unpath: 'Remove footpath', erase: 'Demolish', land: 'Buy land', move: 'Move a building' }[tool.kind];
     const help = tool.msg || (D ? TOOL_HELP.place(D) : TOOL_HELP[tool.kind]());
     let action = '';
     if (D && isTouch()) action = `<button class="buy" type="button" id="bbPlace" ${ghostT && ghostT.ok ? '' : 'disabled'}>${tool.moveId ? 'Move here' : 'Place'}</button>`;
+    if (TT) action = `<span class="brush">${BRUSH.map((b, i) => `<button class="ghost dmini" type="button" data-brush="${i}" aria-pressed="${i === terBrush}">${b.k}</button>`).join('')}</span>`;
     if (tool.kind === 'land' && tool.plot !== undefined && tool.plot !== null) {
       const own = S.world.land.includes(tool.plot), price = parcelPrice();
       action = own ? '' : `<button class="buy" type="button" id="bbBuyLand" ${S.money < price ? 'disabled' : ''}>Buy for ${fmt(price)}</button>`;
@@ -8113,6 +8524,7 @@ label.auto input { accent-color: var(--turf); }
   }
   $('buildBar').addEventListener('click', e => {
     if (e.target.closest('#bbCancel')) { setTool(null); Sound.ui('close'); }
+    else if (e.target.closest('[data-brush]')) { terBrush = +e.target.closest('[data-brush]').dataset.brush; Sound.ui('tap'); paintBuildBar(); }
     else if (e.target.closest('#bbPlace')) commitGhost();
     else if (e.target.closest('#bbBuildPath')) buildSuggested();
     else if (e.target.closest('#bbBuyLand')) { if (buyPlot(tool.plot)) { tool.msg = 'Bought. The land is yours to build on.'; tool.bad = false; } paintBuildBar(); }
@@ -8134,13 +8546,14 @@ label.auto input { accent-color: var(--turf); }
     if (!tool) return false;
     const c = tileOf(wx, wy);
     tool.msg = ''; tool.bad = false;
+    if (isTerraTool(tool)) { tool.hw = { x: wx, y: wy }; terraBrush(tool.kind, wx, wy); endTerraStroke(); refreshList(); return true; }
     if (tool.kind === 'place') {
       ghostT = ghostAt(wx, wy);
       if (!isTouch()) commitGhost(); else paintBuildBar();
     } else if (tool.kind === 'path' || tool.kind === 'unpath') {
       const ok = paintPath(c.tx, c.ty, tool.kind === 'path');
       if (ok) Sound.ui('tap');
-      else if (tool.kind === 'path') { tool.msg = !ownsTile(c.tx, c.ty) ? "You don't own this land." : occ[tIdx(c.tx, c.ty)] ? 'Something is built here.' : S.money < PATH_COST ? 'Not enough cash.' : ''; tool.bad = !!tool.msg; }
+      else if (tool.kind === 'path') { const o = occ[tIdx(c.tx, c.ty)]; tool.msg = !ownsTile(c.tx, c.ty) ? "You don't own this land." : o && o !== -2 ? 'Something is built here.' : S.money < (o === -2 ? BRIDGE_COST : PATH_COST) ? 'Not enough cash.' : ''; tool.bad = !!tool.msg; }
     } else if (tool.kind === 'move') {
       const id = occ[tIdx(c.tx, c.ty)], o = id > 0 ? objById(id) : null;
       if (o && o.type !== 'lot') { setTool({ kind: 'place', type: o.type, moveId: o.id }); ghostT = ghostAt(wx, wy); paintBuildBar(); return true; }
@@ -8157,6 +8570,7 @@ label.auto input { accent-color: var(--turf); }
   }
   // desktop: dragging paints paths
   function buildDrag(wx, wy) {
+    if (isTerraTool(tool)) { tool.hw = { x: wx, y: wy }; terraBrush(tool.kind, wx, wy); return; }
     if (!tool || (tool.kind !== 'path' && tool.kind !== 'unpath')) return;
     const c = tileOf(wx, wy);
     if (paintPath(c.tx, c.ty, tool.kind === 'path')) Sound.ui('tap');
@@ -8165,6 +8579,7 @@ label.auto input { accent-color: var(--turf); }
     if (!tool) return;
     if (tool.kind === 'place' && !isTouch()) ghostT = ghostAt(wx, wy);
     tool.hover = tileOf(wx, wy);
+    if (isTerraTool(tool) && !isTouch()) tool.hw = { x: wx, y: wy };
   }
   function drawBuildOverlay(t) {
     if (!tool) return;
@@ -8176,6 +8591,7 @@ label.auto input { accent-color: var(--turf); }
       for (let y = Math.floor(V.y0 / TILE) * TILE; y < Math.min(LAND_Y1, V.y1); y += TILE) { ctx.moveTo(V.x0, y); ctx.lineTo(V.x1, y); }
       ctx.stroke();
     }
+    if (isTerraTool(tool)) { drawTerraOverlay(t); return; }
     // every building's door
     for (const o of objs()) { if (OBJ[o.type].free) continue; const d = doorOf(o); ctx.strokeStyle = connected('OBJ:' + o.id) || o.type === 'lot' ? 'rgba(127,224,154,0.9)' : 'rgba(232,67,46,0.9)'; ctx.lineWidth = 2; ctx.strokeRect(d.tx * TILE + 2, d.ty * TILE + 2, TILE - 4, TILE - 4); }
     if (tool.kind === 'place' && ghostT) {
@@ -8204,7 +8620,9 @@ label.auto input { accent-color: var(--turf); }
         <button class="tool-btn" type="button" data-tool="move">${IC('<path d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3"/>')}<b>Move</b><span>free</span></button>
         <button class="tool-btn" type="button" data-tool="erase">${IC('<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>')}<b>Demolish</b><span>40% back</span></button>
         <button class="tool-btn" type="button" data-tool="land">${IC('<path d="M3 20l6-12 4 7 3-4 5 9z"/>')}<b>Buy land</b><span id="landPrice"></span></button>
-      </div>`;
+      </div>
+      <div class="subhead">Landscaping</div>
+      <div class="tool-row">${Object.entries(TERRA).map(([k, d]) => `<button class="tool-btn" type="button" data-tool="${k}">${IC(TERRA_IC[k])}<b>${d.short}</b><span>${k === 'water' || k === 'drain' ? `${fmt(d.cost)} a tile` : `${fmt(d.cost * 2)} per m`}</span></button>`).join('')}</div>`;
     return tools + cats.map(c => `<div class="subhead">${c}</div>` + Object.entries(OBJ).filter(([, d]) => d.cat === c).map(([k, d]) => `
       <div class="row place" data-place="${k}">
         <span class="ic">${ITEM_ICON[d.icon] || ITEM_ICON._}</span>
@@ -8662,7 +9080,7 @@ label.auto input { accent-color: var(--turf); }
     let rem = simDt; while (rem > 0) { const st = Math.min(rem, 0.1); tick(st); rem -= st; }
     const vdt = simDt;   // animations follow game time, so pausing freezes the park
     clockT += vdt;
-    pcTick(dt);
+    pcTick(dt); terraTick(dt);
     stepCamera(dt); followCam(dt); titleDrift(dt);
     updateActors(clockT);
     drawScene(vdt, clockT);

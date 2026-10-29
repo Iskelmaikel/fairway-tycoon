@@ -1,5 +1,7 @@
 # Fairway Tycoon (web)
 
+> **The game now lives in [`godot/`](godot/).** This web version (v0.41.0) is frozen: it stays playable and is the reference the Godot port was made from, but new features go into the Godot version.
+
 Build and run your own golf club, from a patch of grass by the road to a five-star championship venue.
 
 Play it in the browser: everything is in `index.html`. Saves are kept in your browser (local storage), per device.

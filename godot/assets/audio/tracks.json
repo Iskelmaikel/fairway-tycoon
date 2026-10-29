@@ -1,0 +1,37 @@
+[
+ {
+  "id": "theme",
+  "name": "Fairway Tycoon",
+  "mood": "title"
+ },
+ {
+  "id": "firsttee",
+  "name": "First Tee Bossa",
+  "mood": "day"
+ },
+ {
+  "id": "dogleg",
+  "name": "Dogleg Swing",
+  "mood": "day"
+ },
+ {
+  "id": "fourball",
+  "name": "Sunday Fourball Waltz",
+  "mood": "day"
+ },
+ {
+  "id": "lakeside",
+  "name": "Lakeside Lounge",
+  "mood": "rain"
+ },
+ {
+  "id": "backnine",
+  "name": "Back Nine Ballad",
+  "mood": "evening"
+ },
+ {
+  "id": "nightrange",
+  "name": "Floodlights",
+  "mood": "evening"
+ }
+]
